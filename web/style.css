@@ -1,0 +1,43 @@
+/* Thin layer over Primer CSS. One accent (Primer blue), one radius scale (6px), tokens come from Primer. */
+body { background: var(--bgColor-default, var(--color-canvas-default)); color: var(--fgColor-default, var(--color-fg-default)); min-height: 100dvh; }
+.note { font-size: 12px; color: var(--fgColor-muted, var(--color-fg-muted)); }
+.gap-2 { gap: 8px; } .gap-3 { gap: 16px; }
+.min-width-0 { min-width: 0; }
+.text-mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 1px; background: var(--borderColor-default, var(--color-border-default)); border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 6px; overflow: hidden; }
+.stat { padding: 16px; background: var(--bgColor-default, var(--color-canvas-default)); }
+.stat-value { font-size: 22px; font-weight: 600; line-height: 1.3; margin: 4px 0; font-variant-numeric: tabular-nums; }
+
+.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--borderColor-default, var(--color-border-default)); }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; font: inherit; color: var(--fgColor-muted, var(--color-fg-muted)); cursor: pointer; white-space: nowrap; }
+.tab:hover { color: var(--fgColor-default, var(--color-fg-default)); }
+.tab.selected { color: var(--fgColor-default, var(--color-fg-default)); border-bottom-color: var(--fgColor-accent, var(--color-accent-fg)); font-weight: 600; }
+.tab:focus-visible, .btn:focus-visible { outline: 2px solid var(--fgColor-accent, var(--color-accent-fg)); outline-offset: 2px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 6px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th { text-align: left; font-weight: 600; font-size: 12px; color: var(--fgColor-muted, var(--color-fg-muted)); background: var(--bgColor-muted, var(--color-canvas-subtle)); padding: 8px 12px; white-space: nowrap; }
+table.data td { padding: 8px 12px; vertical-align: top; border-top: 1px solid var(--borderColor-muted, var(--color-border-muted)); }
+table.data .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.blankslate { padding: 32px 16px; text-align: center; border: 1px dashed var(--borderColor-default, var(--color-border-default)); border-radius: 6px; }
+
+.indeterminate { height: 3px; background: var(--bgColor-muted, var(--color-canvas-subtle)); position: relative; overflow: hidden; border-radius: 6px 6px 0 0; }
+.indeterminate::after { content: ""; position: absolute; inset: 0 auto 0 -35%; width: 35%; background: var(--fgColor-accent, var(--color-accent-fg)); animation: slide 1.4s ease-in-out infinite; }
+@keyframes slide { to { left: 100%; } }
+.skeleton { height: 14px; border-radius: 6px; margin-bottom: 12px; background: var(--bgColor-muted, var(--color-canvas-subtle)); }
+@media (prefers-reduced-motion: reduce) { .indeterminate::after { animation: none; inset: 0; width: 100%; opacity: .4; } }
+
+/* Primer CSS 22 no longer ships Box, flash or Label (they moved to Primer React). Equivalents on Primer tokens. */
+.Box { border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 6px; background: var(--bgColor-default, var(--color-canvas-default)); }
+.Box-row { padding: 12px 16px; border-top: 1px solid var(--borderColor-muted, var(--color-border-muted)); }
+.Box-row:first-child { border-top: 0; }
+.flash { padding: 12px 16px; border: 1px solid var(--borderColor-accent-muted, var(--borderColor-default)); border-radius: 6px; background: var(--bgColor-accent-muted, var(--bgColor-muted)); }
+.flash-error { border-color: var(--borderColor-danger-muted, var(--borderColor-default)); background: var(--bgColor-danger-muted, var(--bgColor-muted)); color: var(--fgColor-danger, inherit); }
+.Label { display: inline-block; padding: 0 7px; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 2em; color: var(--fgColor-muted, var(--color-fg-muted)); }
+.Label--accent { color: var(--fgColor-accent); border-color: var(--borderColor-accent-muted, currentColor); }
+.Label--success { color: var(--fgColor-success); border-color: var(--borderColor-success-muted, currentColor); }
+.Label--danger { color: var(--fgColor-danger); border-color: var(--borderColor-danger-muted, currentColor); }
+.Header { align-items: center; padding: 16px; }
+
+.skeleton.w-40 { width: 40%; } .skeleton.w-70 { width: 70%; } .skeleton.w-90 { width: 90%; }

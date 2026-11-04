@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activity Ledger</title>
+  <meta name="description" content="Turn a Stellar address into books: classified Soroban DeFi activity, tax lots, income and exports.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/vendor/primer.css">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" type="module" defer></script>
+</head>
+<body>
+  <header class="Header">
+    <div class="Header-item Header-item--full"><span class="Header-link f4 text-bold">Activity Ledger</span></div>
+    <div class="Header-item f6 color-fg-muted">Runs on your machine. Reads public chain data only.</div>
+  </header>
+
+  <main class="container-lg px-3 py-4">
+    <div id="error" class="flash flash-error mb-3" role="alert" hidden></div>
+
+    <section class="mb-4" aria-labelledby="h-sync">
+      <h1 id="h-sync" class="f2 mb-1">Turn a Stellar address into books</h1>
+      <p class="color-fg-muted col-md-9 mb-3">Decodes Soroban DeFi and classic activity, prices it, tracks tax lots and lending interest, and exports for Koinly or your accountant.</p>
+
+      <form id="sync-form" class="Box p-3" novalidate>
+        <div class="mb-3">
+          <label class="d-block text-bold mb-1" for="addresses">Stellar addresses</label>
+          <textarea id="addresses" class="form-control width-full text-mono" rows="3" spellcheck="false" autocomplete="off" placeholder="G..."></textarea>
+          <p class="note mt-1 mb-0">One or more addresses you own, separated by spaces or new lines. Transfers between them are treated as non-taxable.</p>
+        </div>
+        <div class="d-flex flex-wrap flex-items-end gap-3">
+          <div>
+            <label class="d-block text-bold mb-1" for="limit">Max transactions</label>
+            <input id="limit" class="form-control" type="number" min="1" max="100000" inputmode="numeric" placeholder="All">
+          </div>
+          <button id="sync" class="btn btn-primary" type="submit">Sync</button>
+          <button id="open-report" class="btn" type="button">Open stored report</button>
+        </div>
+        <p class="note mt-2 mb-0">Decoding is slow today, roughly 5 seconds of CPU per ledger. Try 20 transactions first. Syncing again continues where it stopped. <span id="history-note">Older activity than Horizon's rolling window (about a year) cannot be discovered.</span></p>
+      </form>
+    </section>
+
+    <section id="progress" class="mb-4" hidden aria-live="polite">
+      <h2 class="f3 mb-2">Sync</h2>
+      <div class="Box">
+        <div id="progress-bar" class="indeterminate" role="progressbar" aria-label="Sync in progress"></div>
+        <div id="progress-body"></div>
+      </div>
+    </section>
+
+    <section id="stored-wrap" class="mb-4" hidden>
+      <h2 class="f3 mb-2">Stored accounts</h2>
+      <ul id="stored" class="Box list-style-none pl-0 mb-0"></ul>
+    </section>
+
+    <section id="report" class="mb-6" hidden aria-labelledby="h-report">
+      <div class="d-flex flex-wrap flex-items-end gap-3 mb-3">
+        <h2 id="h-report" class="f2 mr-auto mb-0">Report</h2>
+        <div><label class="d-block f6 mb-1" for="year">Year</label>
+          <select id="year" class="form-select"><option value="">All years</option></select></div>
+        <div><label class="d-block f6 mb-1" for="method">Cost basis</label>
+          <select id="method" class="form-select"><option>FIFO</option><option>LIFO</option><option>HIFO</option></select></div>
+        <div><label class="d-block f6 mb-1" for="lp">Liquidity</label>
+          <select id="lp" class="form-select"><option value="disposal">Taxable swap</option><option value="carryover">Carry over basis</option></select></div>
+      </div>
+
+      <div id="report-loading" class="Box p-4" hidden>
+        <div class="skeleton w-40"></div><div class="skeleton w-90"></div><div class="skeleton w-70"></div>
+        <p class="f6 color-fg-muted mt-3 mb-0">Classifying and pricing. The first report asks Horizon for exchange prices and can take a few seconds.</p>
+      </div>
+
+      <div id="report-body" hidden>
+        <div id="stats" class="stats mb-4"></div>
+
+        <div class="d-flex flex-wrap flex-items-center gap-2 mb-3">
+          <span class="f6 color-fg-muted mr-1">Export</span>
+          <button class="btn btn-sm btn-primary" type="button" data-export="koinly">Koinly CSV</button>
+          <button class="btn btn-sm" type="button" data-export="events">Events</button>
+          <button class="btn btn-sm" type="button" data-export="gains">Gains</button>
+          <button class="btn btn-sm" type="button" data-export="income">Income</button>
+          <button class="btn btn-sm" type="button" data-export="journal">Journal</button>
+          <button class="btn btn-sm" type="button" data-export="json">JSON</button>
+        </div>
+
+        <div id="tabs" class="tabs" role="tablist" aria-label="Report sections"></div>
+        <div id="tab-body" class="pt-3" role="tabpanel"></div>
+        <p class="note mt-4 mb-0">Accounting defaults are conventional, not tax advice. Koinly label mapping is unverified against a live import. Accrued but unwithdrawn interest is not recognised.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
