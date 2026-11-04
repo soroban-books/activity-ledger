@@ -12,9 +12,15 @@ Turn a Stellar address into books: decode Soroban DeFi activity, classify it, pr
 - Exports Koinly CSV, events, gains, income, double-entry journal and JSON. A real example from 100 mainnet transactions is in `out/example/`.
 
 ## What does not (be honest)
-First sync is slow (JS XDR decode 4–8 s per ledger, `docs/VERIFIED-FINDINGS.md` F-6); history before 2025-09-07 is out of reach; only Blend v2 and the Soroswap router are decoded; accrued-but-unwithdrawn interest is not recognised; Koinly label mapping is unverified; accounting defaults are conventional, not tax advice.
+First sync is slow (JS XDR decode 4–8 s per ledger, `docs/VERIFIED-FINDINGS.md` F-6); history older than Horizon's rolling window is out of reach (the window start moves forward about a day per day: it was 2025-09-07 on 2026-10-24 and 2025-09-19 on 2026-11-04, so sync early and keep your database); only Blend v2 and the Soroswap router are decoded; accrued-but-unwithdrawn interest is not recognised; Koinly label mapping is unverified; accounting defaults are conventional, not tax advice.
 
-## Quick start
+## Web UI
+```bash
+pnpm install && node src/cli.ts serve        # http://localhost:4173
+```
+Paste an address, sync, then browse events, gains, income, balances and warnings, and download Koinly CSV, journal or JSON. It runs on your machine (loopback only), keeps data in a local SQLite file and reads public chain data only. Built version: `pnpm build && node dist/cli.js serve`.
+
+## Quick start (CLI)
 ```bash
 pnpm install                       # Node >= 22.18 (type stripping on by default; built and tested on 24)
 pnpm test                          # offline, uses fixtures/
