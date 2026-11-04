@@ -42,6 +42,21 @@ export class Store {
   skipped(account: string): { hash: string; ledger: number; reason: string }[] {
     return this.db.prepare('SELECT hash, ledger, reason FROM skipped WHERE account = ?').all(account) as never;
   }
+  /** Every account with stored data, with counts. */
+  accounts(): { account: string; txs: number; skipped: number; lastLedger: number | null; updatedAt: string | null }[] {
+    const rows = this.db
+      .prepare(
+        `SELECT a.account AS account,
+                (SELECT COUNT(*) FROM txs t WHERE t.account = a.account) AS txs,
+                (SELECT COUNT(*) FROM skipped s WHERE s.account = a.account) AS skipped,
+                (SELECT MAX(ledger) FROM txs t WHERE t.account = a.account) AS lastLedger,
+                (SELECT updated_at FROM cursors c WHERE c.account = a.account) AS updatedAt
+         FROM (SELECT account FROM txs UNION SELECT account FROM cursors) a
+         ORDER BY updatedAt DESC`,
+      )
+      .all() as never;
+    return rows;
+  }
   close(): void {
     this.db.close();
   }
