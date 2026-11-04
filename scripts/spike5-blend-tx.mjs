@@ -1,0 +1,11 @@
+import { LakeSource } from '../src/sources/lake.ts';
+import { jsonSafe } from '../src/util.ts';
+const H = 'https://horizon.stellar.org';
+const hash = process.argv[2];
+const t = await (await fetch(`${H}/transactions/${hash}`)).json();
+console.log('ledger', t.ledger, 'src', t.source_account.slice(0,8), t.created_at);
+const lake = new LakeSource({ cacheDir: '.cache/lake' });
+const L = await lake.getLedger(t.ledger);
+const tx = L.txs.get(hash);
+console.log('closedAt', L.closedAt, 'ok', tx.successful, 'events', tx.events.length);
+for (const e of tx.events) console.log(e.opIndex, e.eventIndex, e.type, e.contractId?.slice(0,6), jsonSafe(e.topics).slice(0,200), jsonSafe(e.data).slice(0,160));

@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+import zlib from 'node:zlib';
+import { parquetReadObjects } from 'hyparquet';
+import { xdr, scValToNative } from '@stellar/stellar-sdk';
+const buf = fs.readFileSync('/tmp/l.parquet');
+const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+let t = performance.now();
+const rows = await parquetReadObjects({ file: ab, compressors: { ZSTD: (input) => zlib.zstdDecompressSync(input) } });
+console.log('read ms', (performance.now() - t).toFixed(0), 'rows', rows.length);
+const txs = rows[0].transactions;
+console.log('txs', txs.length, Object.keys(txs[0]).join(','));
+const tx = txs.find(x => Buffer.from(x.transaction_hash).toString('hex').startsWith('32a3ec76'));
+console.log('target tx ops', tx.operations.length, 'tx events', tx.events?.length);
+const op = tx.operations[0];
+console.log('op keys', Object.keys(op).join(','));
+console.log('op events', op.events.length, JSON.stringify(Object.keys(op.events[0])));
+const e = op.events[0];
+console.log('type', typeof e.type, e.type instanceof Uint8Array ? Buffer.from(e.type).toString('hex') : e.type, 'contract_id', e.contract_id && Buffer.from(e.contract_id).length);
+console.log('topics', Array.isArray(e.topics) ? `array[${e.topics.length}]` : (e.topics instanceof Uint8Array ? `bytes ${e.topics.length}` : typeof e.topics));
+const tb = e.topics instanceof Uint8Array ? e.topics : null;
+if (tb) { try { console.log(JSON.stringify(scValToNative(xdr.ScVal.fromXDR(Buffer.from(tb))), (k,v)=>typeof v==='bigint'?v.toString():v)); } catch (er) { console.log('topics not single ScVal:', er.message); console.log(Buffer.from(tb).toString('hex').slice(0,120)); } }
+console.log('data', e.data instanceof Uint8Array ? Buffer.from(e.data).toString('hex').slice(0,80) : e.data);
