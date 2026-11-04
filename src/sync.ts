@@ -9,33 +9,17 @@ export interface SyncOptions extends HorizonOptions {
   onTx: (tx: RawTx, pagingToken: string) => void | Promise<void>;
   onSkip?: (h: HorizonTx, reason: string) => void;
   limit?: number;
-  /** Parallel lake downloads per batch (default 8). */
+  /** Parallel lake downloads per batch (default 8). More does not add throughput on a bandwidth-bound link and delays the first result. */
   concurrency?: number;
-  /** Horizon transactions grouped per batch before downloading (default 32). */
+  /** Horizon transactions grouped per batch before downloading (default 40). */
   batchSize?: number;
-}
-
-/** Run `fn` over items with at most `n` in flight; results keep input order. */
-async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(n, items.length) }, async () => {
-      for (;;) {
-        const i = next++;
-        if (i >= items.length) return;
-        out[i] = await fn(items[i]!);
-      }
-    }),
-  );
-  return out;
 }
 
 /** Join Horizon's per-account transaction list with lake events, batch by batch. */
 export async function syncAccount(account: string, opts: SyncOptions): Promise<{ txs: number; skipped: number }> {
   const lake = opts.lake ?? new LakeSource({ cacheDir: '.cache/lake' });
   const conc = opts.concurrency ?? 8;
-  const batchSize = opts.batchSize ?? 32;
+  const batchSize = opts.batchSize ?? 40;
   let txs = 0;
   let skipped = 0;
   let seen = 0;
@@ -46,16 +30,29 @@ export async function syncAccount(account: string, opts: SyncOptions): Promise<{
     const wantedBy = new Map<number, Set<string>>();
     for (const h of batch) (wantedBy.get(h.ledger) ?? wantedBy.set(h.ledger, new Set()).get(h.ledger)!).add(h.hash);
     const ledgers = [...wantedBy.keys()];
-    const loaded = new Map<number, LakeLedger | Error>();
-    await pool(ledgers, conc, async (l) => {
-      try {
-        loaded.set(l, await lake.getLedger(l, wantedBy.get(l)));
-      } catch (e) {
-        loaded.set(l, e as Error);
+    // Downloads run `conc` at a time; transactions are emitted strictly in order as soon as
+    // their ledger is ready, so progress shows early and the stored cursor never skips ahead.
+    const slots = new Map<number, { promise: Promise<LakeLedger | Error>; resolve: (v: LakeLedger | Error) => void }>();
+    for (const l of ledgers) {
+      let resolve!: (v: LakeLedger | Error) => void;
+      const promise = new Promise<LakeLedger | Error>((r) => (resolve = r));
+      slots.set(l, { promise, resolve });
+    }
+    let nextLedger = 0;
+    const runners = Array.from({ length: Math.min(conc, ledgers.length) }, async () => {
+      for (;;) {
+        const i = nextLedger++;
+        if (i >= ledgers.length) return;
+        const l = ledgers[i]!;
+        try {
+          slots.get(l)!.resolve(await lake.getLedger(l, wantedBy.get(l)));
+        } catch (e) {
+          slots.get(l)!.resolve(e as Error);
+        }
       }
     });
     for (const h of batch) {
-      const L = loaded.get(h.ledger);
+      const L = await slots.get(h.ledger)!.promise;
       if (!L || L instanceof Error) {
         skipped++;
         opts.onSkip?.(h, L instanceof Error ? L.message : 'ledger not loaded');
@@ -78,10 +75,13 @@ export async function syncAccount(account: string, opts: SyncOptions): Promise<{
       );
       txs++;
     }
+    await Promise.all(runners);
     batch = [];
   };
 
-  for await (const h of accountTransactions(account, opts)) {
+  // With a small limit, ask Horizon for exactly that many rows instead of a 200-row page.
+  const pageSize = opts.pageSize ?? (opts.limit ? Math.min(opts.limit, 200) : undefined);
+  for await (const h of accountTransactions(account, { ...opts, pageSize, limit: opts.limit })) {
     if (opts.limit && seen >= opts.limit) break;
     seen++;
     batch.push(h);

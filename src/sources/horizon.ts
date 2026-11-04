@@ -4,6 +4,7 @@
  * returns result_meta_xdr). Horizon keeps about one year of history.
  */
 import { Address, Networks, StrKey, TransactionBuilder } from '@stellar/stellar-sdk';
+import { httpFetch, type Fetcher } from './net.ts';
 
 export interface HorizonTx {
   hash: string;
@@ -22,7 +23,8 @@ export interface HorizonTx {
 
 export interface HorizonOptions {
   baseUrl?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: Fetcher;
+  /** Fixed page size. Default: ramp 25, 100, 200 so the first lake downloads start early. */
   pageSize?: number;
 }
 
@@ -44,7 +46,8 @@ export function parseEnvelope(envelopeXdr: string): Pick<HorizonTx, 'opTypes' | 
             res.invokedContracts.push('?');
           }
           const fn = ic.functionName;
-          res.invokedFunctions.push(typeof fn === 'string' ? fn : Buffer.from(fn as Uint8Array).toString());
+          // The SDK returns an XDR string wrapper here (not bytes); String() yields the symbol.
+          res.invokedFunctions.push(fn instanceof Uint8Array ? Buffer.from(fn).toString() : String(fn));
         }
       }
     }
@@ -56,29 +59,48 @@ export function parseEnvelope(envelopeXdr: string): Pick<HorizonTx, 'opTypes' | 
 
 export async function* accountTransactions(
   account: string,
-  opts: HorizonOptions & { cursor?: string } = {},
+  opts: HorizonOptions & { cursor?: string; limit?: number } = {},
 ): AsyncGenerator<HorizonTx> {
   if (!StrKey.isValidEd25519PublicKey(account)) throw new Error(`not a G... account: ${account}`);
   const base = opts.baseUrl ?? 'https://horizon.stellar.org';
-  const doFetch = opts.fetchImpl ?? fetch;
-  let cursor = opts.cursor ?? '';
-  for (;;) {
-    const url = `${base}/accounts/${account}/transactions?order=asc&limit=${opts.pageSize ?? 200}&include_failed=true${cursor ? `&cursor=${cursor}` : ''}`;
-    let body: any;
+  const doFetch = opts.fetchImpl ?? httpFetch;
+  const ramp = opts.pageSize ? [opts.pageSize] : [25, 100, 200];
+  let pageNo = 0;
+  const sizeFor = (n: number): number => ramp[Math.min(n, ramp.length - 1)]!;
+
+  const fetchPage = async (cursor: string, pageSize: number): Promise<any[]> => {
+    const url = `${base}/accounts/${account}/transactions?order=asc&limit=${pageSize}&include_failed=true${cursor ? `&cursor=${cursor}` : ''}`;
     for (let attempt = 0; ; attempt++) {
       const res = await doFetch(url);
-      if (res.ok) {
-        body = await res.json();
-        break;
-      }
+      if (res.ok) return ((await res.json())._embedded.records as any[]) ?? [];
       if (res.status === 404) throw new Error(`account ${account} not found on Horizon`);
       if (attempt >= 4) throw new Error(`Horizon ${res.status} for ${url}`);
       await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
     }
-    const records = body._embedded.records as any[];
+  };
+
+  let emitted = 0;
+  let next = fetchPage(opts.cursor ?? '', sizeFor(0));
+  for (;;) {
+    let records = await next;
     if (records.length === 0) return;
-    for (const r of records) {
-      const meta = parseEnvelope(r.envelope_xdr);
+    let full = records.length >= sizeFor(pageNo);
+    pageNo++;
+    if (opts.limit && emitted + records.length >= opts.limit) {
+      records = records.slice(0, opts.limit - emitted); // last page the caller wants: never prefetch another
+      full = false;
+    }
+    let prefetched = !full;
+    for (let i = 0; i < records.length; i++) {
+      // Start the next page once the consumer is halfway through this one, so the round trip
+      // overlaps with lake downloads, but nothing is fetched for a consumer that stops early.
+      if (!prefetched && i >= records.length >> 1) {
+        next = fetchPage(records[records.length - 1].paging_token, sizeFor(pageNo));
+        next.catch(() => {});
+        prefetched = true;
+      }
+      const r = records[i];
+      emitted++;
       yield {
         hash: r.hash,
         ledger: r.ledger,
@@ -89,10 +111,9 @@ export async function* accountTransactions(
         feeCharged: BigInt(r.fee_charged),
         memo: r.memo ?? null,
         pagingToken: r.paging_token,
-        ...meta,
+        ...parseEnvelope(r.envelope_xdr),
       };
-      cursor = r.paging_token;
     }
-    if (records.length < (opts.pageSize ?? 200)) return;
+    if (!full) return;
   }
 }
