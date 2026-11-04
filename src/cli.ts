@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
 import { StrKey } from '@stellar/stellar-sdk';
@@ -16,6 +17,7 @@ const USAGE = `activity-ledger <command> <G-address...> [options]
   report   classified summary               --year Y  --method FIFO|LIFO|HIFO  --lp disposal|carryover  --prices manual.csv
   events   print classified events
   export   write files                      --format koinly|events|gains|income|journal|json|all  --out dir
+  serve    web UI on localhost (no address)  --port 4173  --prices manual.csv
 Options: --db ledger.sqlite (default)`;
 
 function parse(argv: string[]): { cmd: string; accounts: string[]; opts: Record<string, string> } {
@@ -32,6 +34,14 @@ function parse(argv: string[]): { cmd: string; accounts: string[]; opts: Record<
 
 async function main(): Promise<void> {
   const { cmd, accounts, opts } = parse(process.argv.slice(2));
+  if (cmd === 'serve') {
+    const { startServer } = await import('./server.ts');
+    const port = opts.port ? Number(opts.port) : 4173;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('--port must be 1-65535');
+    await startServer({ db: opts.db ?? 'ledger.sqlite', port, manualPrices: opts.prices });
+    console.log(`activity-ledger running at http://localhost:${port}  (Ctrl+C to stop)`);
+    return;
+  }
   if (!cmd || accounts.length === 0) {
     console.log(USAGE);
     process.exit(cmd ? 1 : 0);
