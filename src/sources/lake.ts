@@ -15,6 +15,7 @@ import { Worker } from 'node:worker_threads';
 import { StrKey, xdr } from '@stellar/stellar-sdk';
 import type { RawEvent } from '../types.ts';
 import { scNative, toHex } from '../util.ts';
+import { httpFetch, type Fetcher } from './net.ts';
 
 const BASE = 'https://aws-public-blockchain.s3.us-east-2.amazonaws.com/v1.1/stellar/ledgers/pubnet';
 const PARTITION = 64000;
@@ -42,7 +43,7 @@ export interface LakeLedger {
 
 export interface LakeOptions {
   cacheDir?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: Fetcher;
 }
 
 type Bytesish = Uint8Array | { value: Uint8Array } | ArrayLike<number>;
@@ -77,7 +78,8 @@ function decodeEvent(
   };
 }
 
-export function decodeLedgerMeta(raw: Uint8Array, ledger: number): LakeLedger {
+/** `wanted` skips event conversion (the costly ScVal -> JS step) for transactions nobody asked for. */
+export function decodeLedgerMeta(raw: Uint8Array, ledger: number, wanted?: ReadonlySet<string> | null): LakeLedger {
   const batch = xdr.LedgerCloseMetaBatch.fromXDR(raw as Buffer) as any;
   const lcm = batch.ledgerCloseMetas[0];
   const v = lcm[lcm.type];
@@ -85,6 +87,7 @@ export function decodeLedgerMeta(raw: Uint8Array, ledger: number): LakeLedger {
   const txs = new Map<string, LakeTx>();
   (v.txProcessing as any[]).forEach((tp, order) => {
     const hash = toHex(bytes(tp.result.transactionHash));
+    if (wanted && !wanted.has(hash)) return;
     const m = tp.txApplyProcessing;
     const inner = m[m.type];
     const events: RawEvent[] = [];
@@ -111,34 +114,46 @@ export function decodeLedgerMeta(raw: Uint8Array, ledger: number): LakeLedger {
   return { ledger, closedAt: new Date(closeTime * 1000).toISOString().replace('.000Z', 'Z'), txs };
 }
 
-/** Small pool of decode workers; falls back to inline decoding when threads are disabled. */
+/** Pool of decode workers, started on demand and kept warm (each one pays ~1-5 s to load the SDK). */
 class DecodePool {
   private workers: { w: Worker; busy: boolean }[] = [];
   private queue: { job: any; resolve: (v: any) => void; reject: (e: Error) => void }[] = [];
-  private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void; slot: { w: Worker; busy: boolean } }>();
+  private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private seq = 1;
+  private size: number;
   constructor(size: number) {
-    for (let i = 0; i < size; i++) {
-      const w = new Worker(new URL(import.meta.url.endsWith('.ts') ? './lake-worker.ts' : './lake-worker.js', import.meta.url));
-      const slot = { w, busy: false };
-      w.on('message', (m: any) => {
-        const p = this.pending.get(m.id);
-        if (!p) return;
-        this.pending.delete(m.id);
-        slot.busy = false;
-        m.ok ? p.resolve(m) : p.reject(new Error(m.error));
-        this.pump();
-      });
-      this.workers.push(slot);
-    }
+    this.size = size;
+  }
+
+  private spawn(): { w: Worker; busy: boolean } {
+    const w = new Worker(new URL(import.meta.url.endsWith('.ts') ? './lake-worker.ts' : './lake-worker.js', import.meta.url));
+    const slot = { w, busy: false };
+    w.on('message', (m: any) => {
+      const p = this.pending.get(m.id);
+      if (!p) return;
+      this.pending.delete(m.id);
+      slot.busy = false;
+      m.ok ? p.resolve(m) : p.reject(new Error(m.error));
+      this.pump();
+    });
+    w.on('error', (e) => {
+      // A crashed worker fails its in-flight job and is replaced on the next pump.
+      slot.busy = false;
+      this.workers = this.workers.filter((x) => x !== slot);
+      for (const [id, p] of this.pending) { this.pending.delete(id); p.reject(e as Error); }
+      this.pump();
+    });
+    this.workers.push(slot);
+    return slot;
   }
   private pump(): void {
-    for (const slot of this.workers) {
-      if (slot.busy) continue;
-      const next = this.queue.shift();
-      if (!next) return;
+    while (this.queue.length > 0) {
+      let slot = this.workers.find((s) => !s.busy);
+      if (!slot && this.workers.length < this.size) slot = this.spawn();
+      if (!slot) return;
+      const next = this.queue.shift()!;
       slot.busy = true;
-      this.pending.set(next.job.id, { resolve: next.resolve, reject: next.reject, slot });
+      this.pending.set(next.job.id, { resolve: next.resolve, reject: next.reject });
       slot.w.postMessage(next.job);
     }
   }
@@ -150,16 +165,17 @@ class DecodePool {
   }
   async close(): Promise<void> {
     await Promise.all(this.workers.map((s) => s.w.terminate()));
+    this.workers = [];
   }
 }
 
 export class LakeSource {
   private cacheDir: string | undefined;
-  private doFetch: typeof fetch;
+  private doFetch: Fetcher;
   private pool: DecodePool | null;
   constructor(opts: LakeOptions & { threads?: number } = {}) {
     this.cacheDir = opts.cacheDir;
-    this.doFetch = opts.fetchImpl ?? fetch;
+    this.doFetch = opts.fetchImpl ?? httpFetch;
     if (this.cacheDir) fs.mkdirSync(this.cacheDir, { recursive: true });
     const n = opts.threads ?? Math.max(1, Math.min(os.availableParallelism() - 1, 8));
     this.pool = n > 0 ? new DecodePool(n) : null;
@@ -174,25 +190,18 @@ export class LakeSource {
     let comp: Buffer | undefined;
     if (cached && fs.existsSync(cached)) comp = fs.readFileSync(cached);
     if (!comp) {
-      let lastErr: unknown;
-      for (let attempt = 0; attempt < 4; attempt++) {
-        try {
-          const res = await this.doFetch(lakeUrl(ledger));
-          if (res.status === 404) throw new Error(`ledger ${ledger} not in lake yet (404)`);
-          if (!res.ok) throw new Error(`lake HTTP ${res.status} for ledger ${ledger}`);
-          comp = Buffer.from(await res.arrayBuffer());
-          break;
-        } catch (e) {
-          lastErr = e;
-          if (String((e as Error).message).includes('404')) throw e;
-          await new Promise((r) => setTimeout(r, 400 * 2 ** attempt));
-        }
+      const res = await this.doFetch(lakeUrl(ledger));
+      if (res.status === 404) throw new Error(`ledger ${ledger} not in lake yet (404)`);
+      if (!res.ok) throw new Error(`lake HTTP ${res.status} for ledger ${ledger}`);
+      comp = Buffer.from(await res.arrayBuffer());
+      if (cached) {
+        const tmp = `${cached}.${process.pid}.tmp`;
+        fs.writeFileSync(tmp, comp);
+        fs.renameSync(tmp, cached); // atomic: a killed sync never leaves a truncated cache file
       }
-      if (!comp) throw lastErr;
-      if (cached) fs.writeFileSync(cached, comp);
     }
     const raw = zlib.zstdDecompressSync(comp);
-    if (!this.pool) return decodeLedgerMeta(raw, ledger);
+    if (!this.pool) return decodeLedgerMeta(raw, ledger, wanted ? new Set(wanted) : null);
     const r = await this.pool.run(ledger, raw, wanted ? [...wanted] : null);
     return { ledger: r.ledger, closedAt: r.closedAt, txs: new Map(r.txs.map((t) => [t.hash, t])) };
   }

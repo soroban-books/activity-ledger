@@ -6,9 +6,8 @@ interface Job { id: number; ledger: number; raw: Uint8Array; wanted: string[] | 
 
 parentPort!.on('message', (job: Job) => {
   try {
-    const L = decodeLedgerMeta(job.raw, job.ledger);
-    const want = job.wanted ? new Set(job.wanted) : null;
-    const txs = [...L.txs.values()].filter((t) => !want || want.has(t.hash));
+    const L = decodeLedgerMeta(job.raw, job.ledger, job.wanted ? new Set(job.wanted) : null);
+    const txs = [...L.txs.values()];
     parentPort!.postMessage({ id: job.id, ok: true, ledger: L.ledger, closedAt: L.closedAt, txs });
   } catch (e) {
     parentPort!.postMessage({ id: job.id, ok: false, error: (e as Error).message });

@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { StrKey } from '@stellar/stellar-sdk';
 import { Store } from './store.ts';
+import { LakeSource } from './sources/lake.ts';
 import { syncAccount } from './sync.ts';
 import { buildLedger } from './pipeline.ts';
 import { reportDto } from './dto.ts';
@@ -97,6 +98,8 @@ export function startServer(opts: ServeOptions): Promise<http.Server> {
   const webDir = path.resolve(opts.webDir ?? fileURLToPath(new URL('../web/', import.meta.url)));
   const store = new Store(opts.db);
   const jobs = new Map<string, Job>();
+  // One lake source for the server's lifetime keeps decode workers warm between syncs.
+  let lake: LakeSource | null = null;
   const allowedHosts = new Set([`localhost:${opts.port}`, `127.0.0.1:${opts.port}`, `[::1]:${opts.port}`]);
   const ledgerCache = new Map<string, Awaited<ReturnType<typeof buildLedger>>>();
 
@@ -153,6 +156,7 @@ export function startServer(opts: ServeOptions): Promise<http.Server> {
           const r = await syncAccount(p.account, {
             cursor: store.cursor(p.account),
             limit: job.limit,
+            lake: (lake ??= new LakeSource({ cacheDir: '.cache/lake' })),
             onSkip: (h, why) => {
               store.skip(p.account, h.hash, h.ledger, why);
               p.skipped++;
@@ -285,7 +289,10 @@ export function startServer(opts: ServeOptions): Promise<http.Server> {
       }
     })();
   });
-  server.on('close', () => store.close());
+  server.on('close', () => {
+    void lake?.close();
+    store.close();
+  });
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(opts.port, host, () => resolve(server));
