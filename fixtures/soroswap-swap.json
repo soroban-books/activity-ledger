@@ -1,0 +1,163 @@
+[
+  {
+    "ledger": 65021724,
+    "closedAt": "2026-10-19T07:20:03Z",
+    "hash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+    "applicationOrder": 444,
+    "sourceAccount": "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT",
+    "feeAccount": "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT",
+    "successful": true,
+    "feeCharged": {
+      "$big": "33347"
+    },
+    "opTypes": [
+      "invokeHostFunction"
+    ],
+    "invokedContracts": [
+      "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"
+    ],
+    "invokedFunctions": [
+      "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+    ],
+    "events": [
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": 0,
+        "eventIndex": 0,
+        "contractId": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+        "type": "contract",
+        "topics": [
+          "transfer",
+          "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT",
+          "CCCDU62TWI744KFK6COAW2PARPVPXKKE3DBVBUZCFWZOGGD7HZ5YEY3X",
+          "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+        ],
+        "data": {
+          "$big": "2571280"
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": 0,
+        "eventIndex": 1,
+        "contractId": "CD25MNVTZDL4Y3XBCPCJXGXATV5WUHHOWMYFF4YBEGU5FCPGMYTVG5JY",
+        "type": "contract",
+        "topics": [
+          "transfer",
+          "CCCDU62TWI744KFK6COAW2PARPVPXKKE3DBVBUZCFWZOGGD7HZ5YEY3X",
+          "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT",
+          "BLND:GDJEHTBE6ZHUXSWFI642DCGLUOECLHPF3KSXHPXTSTJ7E3JF6MQ5EZYY"
+        ],
+        "data": {
+          "$big": "430201920"
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": 0,
+        "eventIndex": 2,
+        "contractId": "CCCDU62TWI744KFK6COAW2PARPVPXKKE3DBVBUZCFWZOGGD7HZ5YEY3X",
+        "type": "contract",
+        "topics": [
+          "SoroswapPair",
+          "sync"
+        ],
+        "data": {
+          "new_reserve_0": {
+            "$big": "102454154979"
+          },
+          "new_reserve_1": {
+            "$big": "17192796326344"
+          }
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": 0,
+        "eventIndex": 3,
+        "contractId": "CCCDU62TWI744KFK6COAW2PARPVPXKKE3DBVBUZCFWZOGGD7HZ5YEY3X",
+        "type": "contract",
+        "topics": [
+          "SoroswapPair",
+          "swap"
+        ],
+        "data": {
+          "amount_0_in": {
+            "$big": "2571280"
+          },
+          "amount_0_out": {
+            "$big": "0"
+          },
+          "amount_1_in": {
+            "$big": "0"
+          },
+          "amount_1_out": {
+            "$big": "430201920"
+          },
+          "to": "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT"
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": 0,
+        "eventIndex": 4,
+        "contractId": "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH",
+        "type": "contract",
+        "topics": [
+          "SoroswapRouter",
+          "swap"
+        ],
+        "data": {
+          "amounts": [
+            {
+              "$big": "2571280"
+            },
+            {
+              "$big": "430201920"
+            }
+          ],
+          "path": [
+            "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+            "CD25MNVTZDL4Y3XBCPCJXGXATV5WUHHOWMYFF4YBEGU5FCPGMYTVG5JY"
+          ],
+          "to": "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT"
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": null,
+        "eventIndex": 5,
+        "contractId": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+        "type": "contract",
+        "topics": [
+          "fee",
+          "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT"
+        ],
+        "data": {
+          "$big": "43869"
+        }
+      },
+      {
+        "ledger": 65021724,
+        "txHash": "32a3ec76eb9c5a3d471cfd7955e4733320971068fb8903ba736266463f26661f",
+        "opIndex": null,
+        "eventIndex": 6,
+        "contractId": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+        "type": "contract",
+        "topics": [
+          "fee",
+          "GCOGUAYJVAJN7XJ4PSJ5J6JSB3GW2OHXLUOGHTKQAMXW34A337YJOPIT"
+        ],
+        "data": {
+          "$big": "-10522"
+        }
+      }
+    ]
+  }
+]
