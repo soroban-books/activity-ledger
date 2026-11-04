@@ -1,17 +1,21 @@
+/** Where does ledger decode time go? Run: node scripts/profile.ts  (uses .cache/lake). */
 import fs from 'node:fs';
 import zlib from 'node:zlib';
+import { xdr } from '@stellar/stellar-sdk';
 import { decodeLedgerMeta } from '../src/sources/lake.ts';
-const files = fs.readdirSync('.cache/lake').slice(0, 5);
+
+const dir = '.cache/lake';
+const files = fs.readdirSync(dir).filter((f) => f.endsWith('.zst')).slice(-4);
 for (const f of files) {
   const seq = Number(f.split('.')[0]);
-  const comp = fs.readFileSync(`.cache/lake/${f}`);
   let t = performance.now();
-  const raw = zlib.zstdDecompressSync(comp);
-  const t1 = performance.now() - t; t = performance.now();
+  const raw = zlib.zstdDecompressSync(fs.readFileSync(`${dir}/${f}`));
+  const zstd = performance.now() - t;
+  t = performance.now();
+  xdr.LedgerCloseMetaBatch.fromXDR(raw as Buffer);
+  const parse = performance.now() - t;
+  t = performance.now();
   const L = decodeLedgerMeta(raw, seq);
-  console.log(seq, 'bytes', comp.length, 'zstd ms', t1.toFixed(0), 'decode ms', (performance.now() - t).toFixed(0), 'txs', L.txs.size);
+  const full = performance.now() - t;
+  console.log(f, `rawKB=${(raw.length / 1024) | 0}`, `zstd=${zstd.toFixed(0)}ms`, `fromXDR=${parse.toFixed(0)}ms`, `fullDecode=${full.toFixed(0)}ms`, `txs=${L.txs.size}`);
 }
-let t = performance.now();
-const r = await fetch('https://horizon.stellar.org/accounts/GBJMQBKQL6FQ6BFZ52YJGY6SEMEER3DSTICPIYBZR3P4T2FUDYZEHUN7/transactions?order=asc&limit=200&include_failed=true');
-const j: any = await r.json();
-console.log('horizon page ms', (performance.now() - t).toFixed(0), r.status, j._embedded.records.length);
