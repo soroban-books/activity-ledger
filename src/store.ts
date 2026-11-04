@@ -1,0 +1,48 @@
+/** SQLite store (node:sqlite). Raw transactions are kept so reclassifying never refetches. */
+import { DatabaseSync } from 'node:sqlite';
+import type { RawTx } from './types.ts';
+import { parseFixture, stringifyFixture } from './util.ts';
+
+export class Store {
+  private db: DatabaseSync;
+  constructor(path: string) {
+    this.db = new DatabaseSync(path);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS txs (
+        account TEXT NOT NULL, hash TEXT NOT NULL, ledger INTEGER NOT NULL, ord INTEGER NOT NULL,
+        closed_at TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY (account, hash)
+      );
+      CREATE INDEX IF NOT EXISTS txs_ledger ON txs (account, ledger, ord);
+      CREATE TABLE IF NOT EXISTS cursors (account TEXT PRIMARY KEY, paging_token TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS skipped (account TEXT NOT NULL, hash TEXT NOT NULL, ledger INTEGER, reason TEXT, PRIMARY KEY (account, hash));
+      CREATE TABLE IF NOT EXISTS registry (contract TEXT PRIMARY KEY, asset TEXT NOT NULL);
+    `);
+  }
+
+  putTx(account: string, tx: RawTx): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO txs (account, hash, ledger, ord, closed_at, json) VALUES (?,?,?,?,?,?)')
+      .run(account, tx.hash, tx.ledger, tx.applicationOrder, tx.closedAt, stringifyFixture(tx));
+  }
+  txs(account: string): RawTx[] {
+    return (this.db.prepare('SELECT json FROM txs WHERE account = ? ORDER BY ledger, ord').all(account) as { json: string }[]).map((r) =>
+      parseFixture<RawTx>(r.json),
+    );
+  }
+  cursor(account: string): string | undefined {
+    const r = this.db.prepare('SELECT paging_token FROM cursors WHERE account = ?').get(account) as { paging_token: string } | undefined;
+    return r?.paging_token;
+  }
+  setCursor(account: string, token: string): void {
+    this.db.prepare('INSERT OR REPLACE INTO cursors (account, paging_token, updated_at) VALUES (?,?,?)').run(account, token, new Date().toISOString());
+  }
+  skip(account: string, hash: string, ledger: number, reason: string): void {
+    this.db.prepare('INSERT OR REPLACE INTO skipped (account, hash, ledger, reason) VALUES (?,?,?,?)').run(account, hash, ledger, reason);
+  }
+  skipped(account: string): { hash: string; ledger: number; reason: string }[] {
+    return this.db.prepare('SELECT hash, ledger, reason FROM skipped WHERE account = ?').all(account) as never;
+  }
+  close(): void {
+    this.db.close();
+  }
+}
