@@ -119,7 +119,7 @@ class DecodePool {
   private seq = 1;
   constructor(size: number) {
     for (let i = 0; i < size; i++) {
-      const w = new Worker(new URL('./lake-worker.ts', import.meta.url));
+      const w = new Worker(new URL(import.meta.url.endsWith('.ts') ? './lake-worker.ts' : './lake-worker.js', import.meta.url));
       const slot = { w, busy: false };
       w.on('message', (m: any) => {
         const p = this.pending.get(m.id);
