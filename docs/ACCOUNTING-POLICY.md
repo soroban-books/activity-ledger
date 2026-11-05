@@ -15,6 +15,9 @@ Config object: `Policy` in `src/ledger/engine.ts` (`lotMethod`, `lp`, `lending`,
 | Lending withdraw | Principal returns with original basis/dates; the excess over principal is **interest income** at fair value on withdrawal | — | Income recognised when realised (received) |
 | Borrow | Acquisition at fair value, debt recorded; no income | — | A loan is not income |
 | Repay | Disposal of repaid units; repayment above tracked debt = **borrow interest expense** | — | Standard |
+| Borrow interest (Blend) | Per d-token share, per pool and asset: repaying burns shares, releases that fraction of principal, and the excess is a `borrow_interest` expense at fair value | — | Interest accrues in the d-token rate, so proportional is the economic reading |
+| Liquidation, victim (Blend) | **Disposal** of the seized collateral for the value of the debt it relieves (proceeds = debt cleared); tokens of cleared debt beyond tracked principal are borrow interest. Valued with rates implied by pool events within about 3 days | Treat as no disposal; or proceeds = collateral market value (then the penalty is an expense) | Common reading: collateral is surrendered in satisfaction of debt. Contested |
+| Liquidation, liquidator (Blend) | Collateral acquired with a basis equal to the value of the debt assumed; the discount is realised when the collateral is later sold. Assumed debt is tracked | Recognise the bonus as income at fill time | Nothing is received in cash at fill time |
 | Reward claim (e.g. BLND) | **Income** at fair value on claim; new lot at that value | — | Income on receipt |
 | Network fee | Disposal of native at fair value + `network_fee` expense | — | Conservative: fee is a spend; accountants may prefer folding into basis |
 | Unclassified contract call | No lot change; `unclassified` warning | — | Honest about not knowing |
@@ -26,7 +29,7 @@ FIFO (default), LIFO, HIFO. Holding period: **long-term when held > 365 days** (
 USD at event time from: manual CSV → USDC peg (assumed $1.00, depegs not modelled) → SDEX hourly close (direct to USDC, else via XLM). An unpriced leg is **never guessed**: the engine warns and uses null/zero. Illiquid and Soroban-AMM-only assets are therefore unpriced until a source is added.
 
 ## Warnings emitted
-`unpriced`, `no_lots` (disposal with no tracked acquisition, e.g. history before the sync window), `unknown_basis` (withdrawal of shares deposited before the window), `unclassified`, `negative_interest` (withdrew less than principal), `lp_value_unpriced`.
+`unpriced`, `no_lots` (disposal with no tracked acquisition, e.g. history before the sync window), `unknown_basis` (withdrawal of shares deposited before the window), `unclassified`, `negative_interest` (withdrew less than principal), `lp_value_unpriced`, `unknown_debt` (repay or liquidation of debt borrowed before the sync window: interest cannot be split), `liquidation_estimated` (valued with implied pool rates; states their distance), `liquidation_unvalued` (no rate or price nearby: nothing booked).
 
 ## Known gaps
 - Accrued-but-unwithdrawn interest is not recognised (needs state reads, T2).

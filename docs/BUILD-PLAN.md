@@ -31,7 +31,7 @@ Run: `pnpm install` · `pnpm test` (offline, ~35 s) · `pnpm typecheck` · `node
 | **G1** | **Demand gate** | 10 interviews (`VALIDATION.md`); decision to continue | 2 wk elapsed, ~3 d effort | **Not started — do this before M3+** |
 | **M3** | Decoder coverage | Blend done in depth (pool verification, borrow/repay shares, flash loan, backstop, liquidations; see DECODERS.md for what is mainnet-verified). Still to do: Aquarius, Phoenix, DeFindex vaults, FxDAO; Blend liquidation valuation (needs M5 rates) | 2–3 wk | Blend done, others not started |
 | **M4** | Correctness corpus | ≥ 20 real addresses, hand-audit 50 events, opening-balance import, fix Koinly labels via real import, extend F-9 test | 1 wk | Not started |
-| **M5** | Accrual + prices | Blend b-rate state reads for accrued interest; Reflector and AMM pool prices; monthly income report | 2 wk | Not started |
+| **M5** | Accrual + prices | Accrued (unwithdrawn) Blend interest using b-rate: current rate by RPC read, historical by implied rates (F-18, built for liquidations); Reflector and AMM pool prices; monthly income report | 2 wk | Implied-rate book built; accrual report not started |
 | **M6** | Service | HTTP API (SPEC §9.1), queue + worker, Postgres, API keys, hosted sync, read-only web report | 3–4 wk | Not started |
 | **M7** | Performance | ~~Rust decoder~~ (F-14: decode is not the bottleneck). Do instead: Soroban RPC fast path for the last 7 days (about 50x fewer bytes), shared/hosted lake cache, resumable skipped-tx retry | 2 wk | Partly done: resilient HTTP, adaptive paging, streamed in-order sync, warm workers |
 | **M8** | Vendor/partner path | Feed/SDK for tax vendors; QuickBooks/Xero files; wallet-backend `ProtocolProcessor` contribution | 2 wk | Not started |
