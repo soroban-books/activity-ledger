@@ -1,0 +1,182 @@
+/*
+ * activity-ledger landing page. Native CSS, no build step. One accent (emerald), zinc neutrals,
+ * one radius (8px), Geist self-hosted. Light and dark follow the system. Motion is limited to
+ * hover and focus states, so there is nothing to disable for prefers-reduced-motion.
+ */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/geist.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/geist-mono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #f6f7f8;
+  --surface: #eceef0;
+  --text: #17191c;
+  --muted: #52585f;
+  --line: #dcdfe3;
+  --accent: #047857;
+  --accent-ink: #f4fbf8;
+  --shadow: 0 18px 50px -24px rgb(4 120 87 / 0.35);
+  --radius: 8px;
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e10;
+    --surface: #14171a;
+    --text: #e8eaec;
+    --muted: #a3aab0;
+    --line: #23282d;
+    --accent: #34d399;
+    --accent-ink: #04130c;
+    --shadow: 0 18px 50px -24px rgb(52 211 153 / 0.28);
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { width: min(100% - 32px, 1160px); margin-inline: auto; }
+.mono { font-family: var(--mono); font-size: 0.92em; }
+.note, .small { font-size: 14px; color: var(--muted); }
+
+/* navigation: one line, 64px */
+.nav { border-bottom: 1px solid var(--line); }
+.nav-row { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brand { font-family: var(--mono); font-weight: 600; font-size: 15px; text-decoration: none; letter-spacing: -0.01em; }
+.nav-links { display: flex; gap: 28px; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 15px; }
+.nav-links a:hover { color: var(--text); }
+
+/* type */
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.03em; }
+h1 { font-size: clamp(2rem, 3.7vw, 3.1rem); line-height: 1.06; }
+h2 { font-size: clamp(1.6rem, 2.6vw, 2.25rem); line-height: 1.12; }
+h3 { font-size: 1.05rem; letter-spacing: -0.015em; }
+.lead { margin: 20px 0 0; font-size: 1.15rem; color: var(--muted); max-width: 44ch; }
+.body { margin: 16px 0 0; color: var(--muted); max-width: 62ch; }
+
+/* buttons: one radius, labels never wrap */
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.btn {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  min-height: 46px; padding: 0 22px; border-radius: var(--radius);
+  font-weight: 600; font-size: 15px; text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.btn:active { transform: translateY(1px) scale(0.99); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border-color: var(--line); color: var(--text); background: transparent; }
+.btn-ghost:hover { border-color: var(--muted); }
+
+/* hero: asymmetric split, fits one viewport */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 56px;
+  align-items: center;
+  min-height: calc(100dvh - 64px);
+  padding-block: 56px;
+}
+.hero-shot {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.hero-shot img { width: 100%; height: auto; }
+
+.section { padding-block: 96px; }
+.section + .section { border-top: 1px solid var(--line); }
+
+/* coverage: two grouped columns, no cards */
+.coverage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 64px;
+  margin-top: 48px;
+}
+.group h3 { color: var(--accent); margin-bottom: 20px; }
+dl { margin: 0; display: grid; gap: 4px 0; }
+dt { font-weight: 600; margin-top: 18px; }
+dt:first-child { margin-top: 0; }
+dd { margin: 0; color: var(--muted); }
+.group .note { margin: 24px 0 0; max-width: 52ch; padding-left: 14px; border-left: 2px solid var(--accent); }
+
+/* positions: image left, copy right */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 64px;
+  align-items: center;
+}
+.split-shot { margin: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+
+/* steps: verbs are the labels */
+.steps {
+  list-style: none; margin: 48px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px;
+}
+.steps li { border-top: 2px solid var(--text); padding-top: 18px; }
+.steps p { margin: 8px 0 0; color: var(--muted); font-size: 16px; }
+
+/* code */
+.code {
+  margin: 28px 0 0; padding: 22px 24px; max-width: 720px; overflow-x: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  font-family: var(--mono); font-size: 14.5px; line-height: 1.75;
+}
+.code code { font-family: inherit; }
+
+.band { padding-bottom: 112px; }
+
+.footer { border-top: 1px solid var(--line); padding-block: 40px; }
+.footer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: start; }
+.footer .small { margin: 0; max-width: 56ch; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 14px; justify-content: flex-end; }
+.footer-links a { color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--text); }
+
+/* below 768px every multi-column layout collapses to one column */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; gap: 40px; padding-block: 48px 40px; }
+  .coverage, .split { grid-template-columns: 1fr; gap: 40px; }
+  .split-copy { order: -1; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .section { padding-block: 64px; }
+  .steps { grid-template-columns: 1fr; gap: 24px; }
+  .footer-row { grid-template-columns: 1fr; }
+  .footer-links { justify-content: flex-start; }
+  .nav-links { gap: 20px; }
+  .code { white-space: pre-wrap; overflow-wrap: anywhere; }
+}

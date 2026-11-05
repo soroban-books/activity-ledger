@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>activity-ledger: books for Stellar and Soroban</title>
+  <meta name="description" content="Open-source tool that turns a Stellar address into classified transactions, tax lots, lending interest and exports for Koinly or your accountant.">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="activity-ledger: books for Stellar and Soroban">
+  <meta property="og:description" content="Classified transactions, tax lots, lending interest and exports for Koinly or your accountant. Runs on your machine.">
+  <meta property="og:image" content="https://soroban-books.github.io/activity-ledger/img/og.png">
+  <meta property="og:url" content="https://soroban-books.github.io/activity-ledger/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" href="#top">activity-ledger</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="https://github.com/soroban-books/activity-ledger/tree/main/docs">Docs</a>
+        <a href="https://github.com/soroban-books/activity-ledger/blob/main/MILESTONE.md">Roadmap</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <h1>Turn a Stellar address into books.</h1>
+        <p class="lead">Paste an address. Get classified transactions, tax lots, lending interest and exports for Koinly or your accountant.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="https://github.com/soroban-books/activity-ledger">View on GitHub</a>
+          <a class="btn btn-ghost" href="#quickstart">Run it locally</a>
+        </div>
+      </div>
+      <figure class="hero-shot">
+        <picture>
+          <source srcset="img/report-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="img/report-light.webp" width="2024" height="1592" alt="The activity-ledger report for a Stellar address showing lending interest, an events table with Blend supply and withdraw rows, and export buttons for Koinly, gains, income and journal." fetchpriority="high">
+        </picture>
+      </figure>
+    </section>
+
+    <section class="wrap section" id="coverage">
+      <h2>Reads Soroban DeFi, not just payments.</h2>
+      <p class="body">Protocol decoders turn contract events into exact accounting events, so a supply is a supply and a swap is a swap.</p>
+      <div class="coverage">
+        <div class="group">
+          <h3>On chain</h3>
+          <dl>
+            <dt>Blend v2</dt>
+            <dd>Supply, withdraw, borrow, repay, flash loans, backstop deposits, auctions and liquidations.</dd>
+            <dt>Soroswap</dt>
+            <dd>Router swaps, plus a generic path for other swaps, liquidity and vault shares.</dd>
+            <dt>Payments</dt>
+            <dd>Classic and token transfers, with network fees netted per transaction.</dd>
+          </dl>
+          <p class="note">Blend pools are verified through the pool factory, so a lookalike contract is never booked as lending.</p>
+        </div>
+        <div class="group">
+          <h3>In the books</h3>
+          <dl>
+            <dt>Lots</dt>
+            <dd>FIFO, LIFO or HIFO, with holding periods.</dd>
+            <dt>Interest</dt>
+            <dd>Lending, borrow and backstop interest, worked out from share balances.</dd>
+            <dt>Prices</dt>
+            <dd>USD at the time, from the SDEX, the USDC peg or your own CSV. Anything unpriced is flagged.</dd>
+            <dt>Exports</dt>
+            <dd>Koinly CSV, events, gains, income, a double-entry journal and JSON.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap section split" id="positions">
+      <figure class="split-shot">
+        <picture>
+          <source srcset="img/positions-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="img/positions-light.webp" width="2024" height="1172" alt="The Balances tab showing open balances, an open USDC lending position in a Blend pool with principal and shares, and an open borrows section." loading="lazy">
+        </picture>
+      </figure>
+      <div class="split-copy">
+        <h2>Positions, not only transactions.</h2>
+        <p class="body">Open lending positions, borrows and balances sit beside every event. When the tool had to estimate something, a warning says so and says why.</p>
+        <p class="body">Raw transactions stay in a local database, so changing the cost-basis method never refetches anything.</p>
+      </div>
+    </section>
+
+    <section class="wrap section" id="how">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Discover</h3>
+          <p>Horizon lists every transaction that touches the address.</p>
+        </li>
+        <li>
+          <h3>Decode</h3>
+          <p>The public Stellar data lake supplies each contract event. Verified decoders classify them.</p>
+        </li>
+        <li>
+          <h3>Price</h3>
+          <p>Every movement gets a USD value at the time it happened.</p>
+        </li>
+        <li>
+          <h3>Export</h3>
+          <p>Download Koinly CSV, a journal or JSON, or read the report in the local web UI.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="wrap section" id="quickstart">
+      <h2>Run it locally</h2>
+      <p class="body">Needs Node 22.18 or newer and pnpm.</p>
+      <pre class="code"><code>git clone https://github.com/soroban-books/activity-ledger
+cd activity-ledger &amp;&amp; pnpm install
+node src/cli.ts serve</code></pre>
+      <p class="body">Then open <span class="mono">http://localhost:4173</span>, paste an address and sync. Try a small sync first.</p>
+    </section>
+
+    <section class="wrap section" id="trust">
+      <h2>Your data stays on your machine.</h2>
+      <p class="body">The web UI listens on loopback only and keeps everything in a local SQLite file. It reads public chain data and never handles keys or signs anything.</p>
+    </section>
+
+    <section class="wrap section band" id="open">
+      <h2>Open source, MIT licensed.</h2>
+      <p class="body">Protocol decoders backed by real mainnet transactions are the most useful contribution. The roadmap lists what is done and what comes next.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/soroban-books/activity-ledger/blob/main/MILESTONE.md">Roadmap</a>
+        <a class="btn btn-ghost" href="https://github.com/soroban-books/activity-ledger/blob/main/CONTRIBUTING.md">Contributing guide</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <p class="small">activity-ledger is not tax advice. Accounting treatments are conventional defaults, written down in the accounting policy.</p>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/soroban-books/activity-ledger">View on GitHub</a>
+        <a href="https://github.com/soroban-books/activity-ledger/blob/main/docs/ACCOUNTING-POLICY.md">Accounting policy</a>
+        <a href="https://github.com/soroban-books/activity-ledger/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/soroban-books/activity-ledger/blob/main/LICENSE">MIT license</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
