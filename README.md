@@ -7,9 +7,7 @@ Turn a Stellar address into books. It reads everything an address did (classic p
 
 > **Not tax advice.** Accounting treatments here are conventional defaults for a space with little official guidance. Every one is explicit, configurable where noted, and written down in [`docs/ACCOUNTING-POLICY.md`](docs/ACCOUNTING-POLICY.md) so an accountant can disagree with it.
 
-## Status
-
-Early (`0.1.0`). The engine, CLI and a local web UI work and are tested against real mainnet transactions. **Demand is not validated** and the project is not production hardened: read [Limits](#limits) before relying on any number.
+Version `0.1.0`. See [MILESTONE.md](MILESTONE.md) for what is done and what is planned.
 
 ## Quick start
 
@@ -71,21 +69,9 @@ Raw transactions are stored in a local SQLite file, so reclassifying or changing
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
-## Limits
-
-- **Sync is network-bound.** Plan on seconds per ledger on a slow link, not CPU ([`docs/VERIFIED-FINDINGS.md`](docs/VERIFIED-FINDINGS.md) F-14). Cached ledgers are free the second time.
-- **History window.** Discovery uses Horizon, whose earliest ledger moves forward about a day per day. Sync early and keep your database.
-- **Decoders.** Blend v2 and the Soroswap router only. Aquarius, Phoenix, FxDAO and DeFindex are not decoded yet. Some Blend paths (borrow, flash loan, backstop) are built from the contract source and tested with synthetic events because no recent mainnet activity existed to capture; `docs/DECODERS.md` marks each one.
-- **Interest** is recognised when realised (on withdrawal or repayment). Accrued but unwithdrawn interest is not.
-- **Pricing** is SDEX-only plus the USDC peg. Soroban-AMM-only and illiquid assets are unpriced.
-- The Koinly label mapping has not been checked against a live import.
-- Non-SAC SEP-41 tokens default to 7 decimals.
-
 ## Documentation
 
-[`docs/PRD.md`](docs/PRD.md) product and demand risk · [`docs/SPEC.md`](docs/SPEC.md) design · [`docs/DECODERS.md`](docs/DECODERS.md) protocol decoders · [`docs/ACCOUNTING-POLICY.md`](docs/ACCOUNTING-POLICY.md) treatments · [`docs/EXPORTS.md`](docs/EXPORTS.md) · [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) roadmap · [`docs/VALIDATION.md`](docs/VALIDATION.md) · [`docs/VERIFIED-FINDINGS.md`](docs/VERIFIED-FINDINGS.md)
-
-Some market claims in `docs/PRD.md` and `docs/VALIDATION.md` cite private research notes that are not part of this repository. Treat those claims as unverified.
+[MILESTONE.md](MILESTONE.md) progress and roadmap · [`docs/PRD.md`](docs/PRD.md) product · [`docs/SPEC.md`](docs/SPEC.md) design · [`docs/DECODERS.md`](docs/DECODERS.md) protocol decoders · [`docs/ACCOUNTING-POLICY.md`](docs/ACCOUNTING-POLICY.md) treatments · [`docs/EXPORTS.md`](docs/EXPORTS.md) · [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) detailed plan · [`docs/VALIDATION.md`](docs/VALIDATION.md) · [`docs/VERIFIED-FINDINGS.md`](docs/VERIFIED-FINDINGS.md)
 
 ## Contributing
 
