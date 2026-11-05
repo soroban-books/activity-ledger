@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement that is not a new protocol decoder.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that you cannot do today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: If it changes a number in a report, say which accounting treatment you expect and why. This is not tax advice, so name the alternatives.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this myself

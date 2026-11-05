@@ -1,0 +1,42 @@
+name: Bug report
+description: Something is wrong, for example a misclassified transaction or a wrong amount.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Transaction hashes and Stellar addresses are public chain data and are fine to share here.
+        **Do not** paste secret keys, seed phrases or anything private. For security problems use the private route in SECURITY.md instead of this form.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did the tool show, and what did you expect? For a wrong number, give the transaction hash and the expected amount.
+    validations:
+      required: true
+  - type: input
+    id: tx
+    attributes:
+      label: Transaction hash (if relevant)
+      placeholder: 64 hex characters
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command, or the UI steps. Include flags such as `--method` and `--lp`.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Output of `git rev-parse --short HEAD`, or the package version.
+  - type: input
+    id: env
+    attributes:
+      label: Node version and OS
+      placeholder: Node 24.x, Linux
+  - type: textarea
+    id: logs
+    attributes:
+      label: Warnings or error output
+      render: text

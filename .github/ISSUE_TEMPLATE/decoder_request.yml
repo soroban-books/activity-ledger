@@ -1,0 +1,38 @@
+name: Protocol decoder request
+description: Ask for a Stellar or Soroban protocol to be decoded.
+labels: [decoder]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A decoder turns a protocol's contract events into exact ledger events. See docs/DECODERS.md for how they work. A request with real transactions is far easier to act on.
+  - type: input
+    id: protocol
+    attributes:
+      label: Protocol
+      placeholder: For example Aquarius, Phoenix, FxDAO, DeFindex
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Contract source or docs
+      description: A link to the contract source or event documentation, if public.
+  - type: textarea
+    id: txs
+    attributes:
+      label: Example mainnet transactions
+      description: Hashes of transactions that show each kind of action you want decoded (deposit, withdraw, swap, claim, and so on). The more kinds, the better.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What do you need out of it
+      description: For example "interest income per position" or "a Koinly row for each swap".
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this decoder myself
