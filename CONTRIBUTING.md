@@ -29,7 +29,8 @@ src/pricing/    price providers
 src/export/     Koinly, events, gains, income, journal
 src/server.ts   local web server;  web/  the UI (plain JS, Primer CSS)
 test/ fixtures/ offline tests and real mainnet transactions
-scripts/        probes, profiling and fixture capture (not shipped)
+scripts/        probes, profiling, fixture and screenshot capture (not shipped)
+site/           static landing page (plain HTML and CSS, deployed to GitHub Pages)
 docs/           design, decoders, accounting policy, verified findings
 ```
 

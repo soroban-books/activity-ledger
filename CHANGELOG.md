@@ -12,6 +12,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - Liquidation valuation from exchange rates derived from pool events (`src/blend/rates.ts`), for both the liquidated user and the liquidator.
 - Soroban RPC client with endpoint fallback; resilient HTTP client with keep-alive, gzip, long timeouts and retries.
 - Profiling, benchmark and mainnet probe scripts under `scripts/`.
+- Static landing page in `site/` (no build step, real screenshots, light and dark) with a GitHub Pages workflow, and `scripts/capture-site-images.mjs` to regenerate the screenshots.
 - MIT license, contributing guide, code of conduct, security policy, issue and pull request templates, CI workflow.
 
 ### Changed
