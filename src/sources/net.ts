@@ -19,13 +19,18 @@ export type Fetcher = (url: string) => Promise<FetchedResponse>;
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 48, timeout: 120_000 });
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 48 });
 
-function once(url: string, timeoutMs: number): Promise<{ status: number; body: Buffer }> {
+function once(url: string, timeoutMs: number, post?: string): Promise<{ status: number; body: Buffer }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const mod = u.protocol === 'http:' ? http : https;
-    const req = mod.get(
+    const headers: Record<string, string | number> = { 'accept-encoding': 'gzip, br', 'user-agent': 'activity-ledger' };
+    if (post !== undefined) {
+      headers['content-type'] = 'application/json';
+      headers['content-length'] = Buffer.byteLength(post);
+    }
+    const req = mod.request(
       u,
-      { agent: u.protocol === 'http:' ? httpAgent : httpsAgent, headers: { 'accept-encoding': 'gzip, br', 'user-agent': 'activity-ledger' } },
+      { method: post === undefined ? 'GET' : 'POST', agent: u.protocol === 'http:' ? httpAgent : httpsAgent, headers },
       (res) => {
         const chunks: Buffer[] = [];
         res.on('data', (c: Buffer) => chunks.push(c));
@@ -45,14 +50,15 @@ function once(url: string, timeoutMs: number): Promise<{ status: number; body: B
     );
     req.setTimeout(timeoutMs, () => req.destroy(new Error(`timeout after ${timeoutMs} ms: ${u.host}${u.pathname.slice(0, 40)}`)));
     req.on('error', reject);
+    req.end(post);
   });
 }
 
-export const httpFetch: Fetcher = async (url, retries = 5, timeoutMs = 90_000) => {
+async function request(url: string, post: string | undefined, retries: number, timeoutMs: number): Promise<FetchedResponse> {
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const { status, body } = await once(url, timeoutMs);
+      const { status, body } = await once(url, timeoutMs, post);
       if (status === 429 || status >= 500) throw new Error(`HTTP ${status}`);
       return {
         ok: status >= 200 && status < 300,
@@ -67,3 +73,8 @@ export const httpFetch: Fetcher = async (url, retries = 5, timeoutMs = 90_000) =
   }
   throw new Error(`network error for ${new URL(url).host}: ${(lastErr as Error)?.message ?? lastErr}`);
 };
+
+export const httpFetch: Fetcher = (url) => request(url, undefined, 5, 90_000);
+
+/** POST a JSON body (used for Soroban RPC). Same retry and timeout behaviour as httpFetch. */
+export const httpPostJson = (url: string, body: unknown): Promise<FetchedResponse> => request(url, JSON.stringify(body), 5, 90_000);
