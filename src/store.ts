@@ -16,6 +16,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS cursors (account TEXT PRIMARY KEY, paging_token TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS skipped (account TEXT NOT NULL, hash TEXT NOT NULL, ledger INTEGER, reason TEXT, PRIMARY KEY (account, hash));
       CREATE TABLE IF NOT EXISTS registry (contract TEXT PRIMARY KEY, asset TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS blend_contracts (contract TEXT PRIMARY KEY, verdict TEXT NOT NULL, checked_at TEXT NOT NULL);
     `);
   }
 
@@ -41,6 +42,14 @@ export class Store {
   }
   skipped(account: string): { hash: string; ledger: number; reason: string }[] {
     return this.db.prepare('SELECT hash, ledger, reason FROM skipped WHERE account = ?').all(account) as never;
+  }
+  /** Cached Blend pool verdicts (see blend/directory.ts). */
+  blendVerdict(contract: string): { verdict: 'pool' | 'no'; checkedAt: string } | undefined {
+    const r = this.db.prepare('SELECT verdict, checked_at FROM blend_contracts WHERE contract = ?').get(contract) as { verdict: 'pool' | 'no'; checked_at: string } | undefined;
+    return r ? { verdict: r.verdict, checkedAt: r.checked_at } : undefined;
+  }
+  setBlendVerdict(contract: string, verdict: 'pool' | 'no'): void {
+    this.db.prepare('INSERT OR REPLACE INTO blend_contracts (contract, verdict, checked_at) VALUES (?,?,?)').run(contract, verdict, new Date().toISOString());
   }
   /** Every account with stored data, with counts. */
   accounts(): { account: string; txs: number; skipped: number; lastLedger: number | null; updatedAt: string | null }[] {
