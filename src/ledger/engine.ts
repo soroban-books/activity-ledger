@@ -7,7 +7,8 @@ import type { LedgerEvent, Leg } from '../types.ts';
 import type { PriceProvider } from '../pricing/types.ts';
 import { LotBook, type Disposal, type LotMethod } from './lots.ts';
 import { Positions } from './positions.ts';
-import { valueMicro, type Micro } from './money.ts';
+import { Debts, type Debt } from './debt.ts';
+import { fmtUsd, valueMicro, type Micro } from './money.ts';
 
 export interface Policy {
   lotMethod: LotMethod;
@@ -49,7 +50,9 @@ export interface ExpenseItem {
 
 export interface Warning {
   eventId: string;
-  code: 'unpriced' | 'no_lots' | 'unknown_basis' | 'unclassified' | 'negative_interest' | 'lp_value_unpriced';
+  code:
+    | 'unpriced' | 'no_lots' | 'unknown_basis' | 'unclassified' | 'negative_interest' | 'lp_value_unpriced'
+    | 'unknown_debt' | 'liquidation_unvalued';
   message: string;
 }
 
@@ -67,11 +70,14 @@ export interface EngineResult {
   pricedLegs: Map<string, PricedLeg[]>; // event id -> legs with USD values (for export)
   openBalances: { asset: string; units: bigint }[];
   positions: ReturnType<Positions['snapshot']>;
+  debts: Debt[];
 }
 
 export class Engine {
   readonly book: LotBook;
   readonly positions = new Positions();
+  readonly debts = new Debts();
+  /** Legacy per-asset debt, only for events without a share position (non-Blend decoders). */
   private debt = new Map<string, bigint>();
   readonly disposals: Disposal[] = [];
   readonly income: IncomeItem[] = [];
@@ -277,14 +283,50 @@ export class Engine {
       }
       case 'borrow': {
         const l = ins[0];
-        if (!l) return;
-        this.debt.set(l.asset, (this.debt.get(l.asset) ?? 0n) + l.amount);
+        const p = ev.position;
+        if (p?.protocol === 'blend-debt') this.debts.borrow(Positions.key(p.protocol, p.pool, p.asset), p.shares, p.tokens ?? l?.amount ?? 0n);
+        if (!l) return; // flash loan: the cash went to a receiver contract, not this wallet
+        if (!p) this.debt.set(l.asset, (this.debt.get(l.asset) ?? 0n) + l.amount);
         this.book.acquire(l.asset, l.amount, l.valueMicro ?? 0n, ev.closedAt, 'borrow');
+        return;
+      }
+      case 'liquidation': {
+        // Collateral seized and debt cleared are moves of shares, not cash. Their USD value needs the
+        // pool's b_rate / d_rate at that ledger (a state read, milestone M5), so no gain or loss is
+        // booked: the share ledgers stay consistent and the gap is reported, never guessed.
+        const notes: string[] = [];
+        for (const p of ev.positions ?? []) {
+          const key = Positions.key(p.protocol, p.pool, p.asset);
+          const sym = p.asset.split(':')[0]!;
+          if (p.protocol === 'blend-debt') {
+            if (p.direction === 'out') {
+              const r = this.debts.clear(key, p.shares);
+              notes.push(`${p.shares} d-tokens of ${sym} debt cleared (${r.principalUnits} units of tracked principal)`);
+            } else notes.push(`${p.shares} d-tokens of ${sym} debt assumed`);
+          } else if (p.direction === 'out') {
+            const r = this.positions.seize(key, p.shares);
+            notes.push(`${p.shares} b-tokens of ${sym} collateral seized (tracked principal ${r.principalUnits} units, cost basis $${fmtUsd(r.basisMicro)})`);
+          } else notes.push(`${p.shares} b-tokens of ${sym} collateral received`);
+        }
+        this.warn(ev.id, 'liquidation_unvalued', `${ev.note}. ${notes.join('; ')}. Value needs pool rates; no gain or loss is booked.`);
         return;
       }
       case 'repay': {
         const l = outs[0];
         if (!l) return;
+        const p = ev.position;
+        if (p?.protocol === 'blend-debt') {
+          const r = this.debts.repay(Positions.key(p.protocol, p.pool, p.asset), p.shares, l.amount);
+          this.disposeLeg(ev, l, l.valueMicro ?? 0n);
+          if (r.interestUnits > 0n) {
+            const v = l.priceMicro === null ? 0n : valueMicro(r.interestUnits, l.decimals, l.priceMicro);
+            this.expenses.push({ eventId: ev.id, at: ev.closedAt, kind: 'borrow_interest', asset: l.asset, units: r.interestUnits, decimals: l.decimals, valueMicro: v });
+          }
+          if (r.unknownUnits > 0n) {
+            this.warn(ev.id, 'unknown_debt', `${r.unknownUnits} base units of ${l.asset} repaid for debt borrowed before the sync window or taken over in a liquidation; the interest part cannot be split out`);
+          }
+          return;
+        }
         const owed = this.debt.get(l.asset) ?? 0n;
         const principal = l.amount < owed ? l.amount : owed;
         const interest = l.amount - principal;
@@ -320,6 +362,7 @@ export class Engine {
       pricedLegs: this.pricedLegs,
       openBalances: this.book.assets().map((asset) => ({ asset, units: this.book.balance(asset) })),
       positions: this.positions.snapshot(),
+      debts: this.debts.snapshot(),
     };
   }
 }

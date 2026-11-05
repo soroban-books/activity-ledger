@@ -73,6 +73,33 @@ export class Positions {
     };
   }
 
+  /**
+   * Shares removed with no tokens paid (collateral seized in a liquidation). Returns the principal
+   * and cost basis that disappeared with them; the caller decides how to report that.
+   */
+  seize(key: string, shares: bigint): { principalUnits: bigint; basisMicro: bigint; shareShortfall: bigint } {
+    const pos = this.p.get(key);
+    if (!pos || pos.shares === 0n) return { principalUnits: 0n, basisMicro: 0n, shareShortfall: shares };
+    const use = shares > pos.shares ? pos.shares : shares;
+    const principal = use === pos.shares ? pos.principalUnits : prorate(pos.principalUnits, use, pos.shares);
+    let need = principal;
+    let basis = 0n;
+    for (const c of pos.carries) {
+      if (need === 0n) break;
+      if (c.units === 0n) continue;
+      const u = c.units < need ? c.units : need;
+      const b = u === c.units ? c.basisMicro : prorate(c.basisMicro, u, c.units);
+      c.units -= u;
+      c.basisMicro -= b;
+      basis += b;
+      need -= u;
+    }
+    pos.carries = pos.carries.filter((c) => c.units > 0n);
+    pos.shares -= use;
+    pos.principalUnits -= principal;
+    return { principalUnits: principal, basisMicro: basis, shareShortfall: shares - use };
+  }
+
   snapshot(): Position[] {
     return [...this.p.values()].filter((p) => p.shares > 0n).map((p) => ({ ...p, carries: p.carries.map((c) => ({ ...c })) }));
   }

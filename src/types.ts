@@ -48,7 +48,9 @@ export type EventKind =
   | 'liquidation'
   | 'vault_deposit'
   | 'vault_withdraw'
-  | 'unclassified';
+  | 'unclassified'
+  /** A recognised protocol action that moved no value for the account (queue a withdrawal, auction notice). */
+  | 'no_op';
 
 /** One asset movement belonging to an accounting event. Amounts are in base units. */
 export interface Leg {
@@ -56,6 +58,20 @@ export interface Leg {
   asset: string; // 'native', 'CODE:ISSUER', or contract id C...
   amount: bigint; // base units
   decimals: number;
+}
+
+/**
+ * A change in a share-based position. `protocol` selects the ledger: 'blend' (supplied or
+ * collateral b-tokens), 'blend-debt' (borrowed d-tokens), 'blend-backstop' (backstop shares).
+ * `tokens` is the underlying amount when the event states it.
+ */
+export interface PositionChange {
+  protocol: string;
+  pool: string;
+  asset: string;
+  shares: bigint;
+  direction: 'in' | 'out';
+  tokens?: bigint;
 }
 
 /** An accounting event: the unit that is classified, priced and exported. */
@@ -71,8 +87,10 @@ export interface LedgerEvent {
   legs: Leg[];
   counterparty: string | null;
   note: string;
-  /** Lending position bookkeeping for Blend-style share tokens (b-tokens). */
-  position?: { protocol: string; pool: string; asset: string; shares: bigint; direction: 'in' | 'out' };
+  /** Lending position bookkeeping for Blend-style share tokens (b-tokens, d-tokens, backstop shares). */
+  position?: PositionChange;
+  /** Several position changes at once (a liquidation moves collateral and debt of several reserves). */
+  positions?: PositionChange[];
   /** How sure the classifier is: 'exact' (protocol decoder), 'heuristic', 'unknown'. */
   confidence: 'exact' | 'heuristic' | 'unknown';
 }
