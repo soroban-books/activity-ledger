@@ -1,6 +1,7 @@
 # activity-ledger
 
 [![CI](https://github.com/soroban-books/activity-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/soroban-books/activity-ledger/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/activity-ledger.svg)](https://www.npmjs.com/package/activity-ledger)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Turn a Stellar address into books. It reads everything an address did (classic payments and Soroban contract activity), decodes it per protocol, prices it in USD at the time, tracks tax lots, lending positions and debt, recognises interest and rewards, and exports for tax tools and accountants.
@@ -11,13 +12,10 @@ Website: <https://soroban-books.github.io/activity-ledger/>. Version `0.1.0`. Se
 
 ## Quick start
 
-Needs Node 22.18 or newer (built and tested on 24) and [pnpm](https://pnpm.io).
+Needs Node 22.18 or newer (built and tested on 24). No install step:
 
 ```bash
-git clone https://github.com/soroban-books/activity-ledger
-cd activity-ledger
-pnpm install
-node src/cli.ts serve            # web UI at http://localhost:4173
+npx activity-ledger serve        # web UI at http://localhost:4173
 ```
 
 In the UI: paste an address, sync, then browse events, gains, income, balances and warnings, and download Koinly CSV, journal or JSON.
@@ -25,13 +23,22 @@ In the UI: paste an address, sync, then browse events, gains, income, balances a
 Or use the CLI:
 
 ```bash
-node src/cli.ts sync   G... --db ledger.sqlite --limit 20     # try a small sync first
-node src/cli.ts report G... --db ledger.sqlite [--year 2026] [--method FIFO|LIFO|HIFO] [--lp disposal|carryover] [--prices manual.csv]
-node src/cli.ts events G... --db ledger.sqlite
-node src/cli.ts export G... --db ledger.sqlite --out out --format all
+npx activity-ledger sync   G... --db ledger.sqlite --limit 20     # try a small sync first
+npx activity-ledger report G... --db ledger.sqlite [--year 2026] [--method FIFO|LIFO|HIFO] [--lp disposal|carryover] [--prices manual.csv]
+npx activity-ledger events G... --db ledger.sqlite
+npx activity-ledger export G... --db ledger.sqlite --out out --format all
 ```
 
-Several addresses can be passed together; transfers between them are treated as non-taxable. Syncing is resumable. Export columns are described in [`docs/EXPORTS.md`](docs/EXPORTS.md).
+Data is written to the current folder: the database (`ledger.sqlite` by default) and a ledger cache (`.cache/lake`). Run it from the same folder next time to keep your history. Several addresses can be passed together; transfers between them are treated as non-taxable. Syncing is resumable. Export columns are described in [`docs/EXPORTS.md`](docs/EXPORTS.md).
+
+### From source
+
+```bash
+git clone https://github.com/soroban-books/activity-ledger
+cd activity-ledger
+pnpm install
+node src/cli.ts serve
+```
 
 Development: `pnpm test` (offline, uses `fixtures/`), `pnpm typecheck`, `pnpm build`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
