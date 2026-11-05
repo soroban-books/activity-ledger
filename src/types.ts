@@ -72,6 +72,8 @@ export interface PositionChange {
   shares: bigint;
   direction: 'in' | 'out';
   tokens?: bigint;
+  /** Decimals of the underlying asset (for valuing shares). */
+  decimals?: number;
 }
 
 /** An accounting event: the unit that is classified, priced and exported. */

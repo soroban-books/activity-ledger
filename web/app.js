@@ -16,7 +16,8 @@ const WARN_HELP = {
   negative_interest: 'Computed interest was negative; check the position.',
   lp_value_unpriced: 'Liquidity value could not be priced.',
   unknown_debt: 'A repayment for debt borrowed before the sync window, or taken over in a liquidation. The interest part cannot be split out.',
-  liquidation_unvalued: 'A Blend liquidation moved collateral and debt as shares. Their USD value needs the pool rates at that ledger, so no gain or loss is booked.',
+  liquidation_unvalued: 'A Blend liquidation moved collateral and debt as shares, and no pool rate or price was available nearby, so no gain or loss is booked.',
+  liquidation_estimated: 'A Blend liquidation valued with exchange rates derived from the pool\'s own events a few ledgers away. Collateral is treated as sold for the debt it relieved.',
 };
 
 const state = { accounts: [], data: null, tab: 'events', kind: '', query: '', page: 0, job: null };

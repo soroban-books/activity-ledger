@@ -59,7 +59,7 @@ export function decodeBlend(ctx: ClassifyCtx): LedgerEvent[] {
       note: `Blend ${what} for this account's position, but the tokens moved between other addresses (spender or receiver is not this account), so no wallet movement is booked`,
     });
   const pos = (protocol: string, pool: string, asset: string, shares: bigint, direction: 'in' | 'out', tokens?: bigint): PositionChange => ({
-    protocol, pool, asset, shares, direction, ...(tokens === undefined ? {} : { tokens }),
+    protocol, pool, asset, shares, direction, decimals: ctx.reg.decimalsOf(asset), ...(tokens === undefined ? {} : { tokens }),
   });
 
   for (const e of ctx.tx.events) {

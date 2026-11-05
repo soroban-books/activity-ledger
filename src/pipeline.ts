@@ -4,6 +4,7 @@ import { classifyTx } from './classify/index.ts';
 import { Engine, byChronology, DEFAULT_POLICY, type EngineResult, type Policy } from './ledger/engine.ts';
 import type { PriceProvider } from './pricing/types.ts';
 import { BlendDirectory, candidateContracts, resolveBlend, type VerdictCache } from './blend/directory.ts';
+import { RateBook } from './blend/rates.ts';
 
 /**
  * Decide which Blend-looking contracts in these transactions are real Blend pools. Seed pools are
@@ -41,7 +42,8 @@ export async function buildLedger(
     for (const tx of txs) events.push(...classifyTx(tx, account, reg, blend));
   }
   events.sort(byChronology);
-  const engine = new Engine(prices, policy);
+  const rates = RateBook.harvest([...perAccount.values()].flat(), blend, reg);
+  const engine = new Engine(prices, policy, rates);
   for (const ev of events) await engine.apply(ev);
   const result = engine.result();
 

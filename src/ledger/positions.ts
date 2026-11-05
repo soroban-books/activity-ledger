@@ -77,13 +77,14 @@ export class Positions {
    * Shares removed with no tokens paid (collateral seized in a liquidation). Returns the principal
    * and cost basis that disappeared with them; the caller decides how to report that.
    */
-  seize(key: string, shares: bigint): { principalUnits: bigint; basisMicro: bigint; shareShortfall: bigint } {
+  seize(key: string, shares: bigint): { principalUnits: bigint; basisMicro: bigint; shareShortfall: bigint; earliestAt: string | null } {
     const pos = this.p.get(key);
-    if (!pos || pos.shares === 0n) return { principalUnits: 0n, basisMicro: 0n, shareShortfall: shares };
+    if (!pos || pos.shares === 0n) return { principalUnits: 0n, basisMicro: 0n, shareShortfall: shares, earliestAt: null };
     const use = shares > pos.shares ? pos.shares : shares;
     const principal = use === pos.shares ? pos.principalUnits : prorate(pos.principalUnits, use, pos.shares);
     let need = principal;
     let basis = 0n;
+    let earliestAt: string | null = null;
     for (const c of pos.carries) {
       if (need === 0n) break;
       if (c.units === 0n) continue;
@@ -93,11 +94,12 @@ export class Positions {
       c.basisMicro -= b;
       basis += b;
       need -= u;
+      if (earliestAt === null || c.acquiredAt < earliestAt) earliestAt = c.acquiredAt;
     }
     pos.carries = pos.carries.filter((c) => c.units > 0n);
     pos.shares -= use;
     pos.principalUnits -= principal;
-    return { principalUnits: principal, basisMicro: basis, shareShortfall: shares - use };
+    return { principalUnits: principal, basisMicro: basis, shareShortfall: shares - use, earliestAt };
   }
 
   snapshot(): Position[] {

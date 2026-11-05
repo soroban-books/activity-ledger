@@ -3,7 +3,8 @@
  * lots and lending positions, and emits disposals, income, expenses and warnings.
  * Treatment rules are explicit in `Policy` (see docs/ACCOUNTING-POLICY.md) and never implicit.
  */
-import type { LedgerEvent, Leg } from '../types.ts';
+import type { LedgerEvent, Leg, PositionChange } from '../types.ts';
+import { RATE_SCALE, type RateBook } from '../blend/rates.ts';
 import type { PriceProvider } from '../pricing/types.ts';
 import { LotBook, type Disposal, type LotMethod } from './lots.ts';
 import { Positions } from './positions.ts';
@@ -52,7 +53,7 @@ export interface Warning {
   eventId: string;
   code:
     | 'unpriced' | 'no_lots' | 'unknown_basis' | 'unclassified' | 'negative_interest' | 'lp_value_unpriced'
-    | 'unknown_debt' | 'liquidation_unvalued';
+    | 'unknown_debt' | 'liquidation_unvalued' | 'liquidation_estimated';
   message: string;
 }
 
@@ -87,7 +88,10 @@ export class Engine {
   private policy: Policy;
   private prices: PriceProvider;
 
-  constructor(prices: PriceProvider, policy: Policy = DEFAULT_POLICY) {
+  private rates: RateBook | null;
+
+  constructor(prices: PriceProvider, policy: Policy = DEFAULT_POLICY, rates: RateBook | null = null) {
+    this.rates = rates;
     this.prices = prices;
     this.policy = policy;
     this.book = new LotBook(policy.lotMethod);
@@ -148,6 +152,94 @@ export class Engine {
       used += part;
       return part;
     });
+  }
+
+  /**
+   * Value a Blend user liquidation from rates implied by pool events (blend/rates.ts).
+   * Returns false, touching nothing, if any rate, price or position needed is missing.
+   *
+   * Policy 'debt relief' (conventional, not tax advice): the liquidated user disposes of the seized
+   * collateral for the value of the debt it relieves; the tokens of cleared debt beyond tracked
+   * principal are borrow interest. The liquidator acquires the collateral at the value of the debt
+   * it assumes, so its bonus is realised when it later sells.
+   */
+  private async valueLiquidation(ev: LedgerEvent): Promise<boolean> {
+    const ps = ev.positions ?? [];
+    const collat = ps.filter((p) => p.protocol === 'blend');
+    const debts = ps.filter((p) => p.protocol === 'blend-debt');
+    if (!this.rates || collat.length === 0 || debts.length === 0) return false;
+    const inbound = ps.every((p) => p.direction === 'in');
+    const outbound = ps.every((p) => p.direction === 'out');
+    if (!inbound && !outbound) return false;
+
+    type Valued = { p: PositionChange; tokens: bigint; usd: Micro; priceMicro: bigint; dist: number };
+    const value = async (p: PositionChange, side: 'b' | 'd'): Promise<Valued | null> => {
+      const hit = this.rates!.lookup(p.pool, p.asset, side, ev.ledger);
+      const price = await this.prices.price(p.asset, ev.closedAt);
+      if (!hit || !price) return null;
+      const tokens = (p.shares * hit.rate12 + RATE_SCALE / 2n) / RATE_SCALE;
+      return { p, tokens, usd: valueMicro(tokens, p.decimals ?? 7, price.micro), priceMicro: price.micro, dist: hit.distance };
+    };
+    const cv: Valued[] = [];
+    const dv: Valued[] = [];
+    for (const p of collat) { const v = await value(p, 'b'); if (!v) return false; cv.push(v); }
+    for (const p of debts) { const v = await value(p, 'd'); if (!v) return false; dv.push(v); }
+    const C = cv.reduce((s, v) => s + v.usd, 0n);
+    const D = dv.reduce((s, v) => s + v.usd, 0n);
+    if (C <= 0n || D <= 0n) return false;
+    const maxDist = Math.max(...cv.map((v) => v.dist), ...dv.map((v) => v.dist));
+    const parts: string[] = [];
+
+    if (inbound) {
+      // Liquidator: collateral is bought for the debt assumed (basis = D split by collateral value).
+      for (const v of cv) {
+        const basis = (D * v.usd) / C;
+        this.positions.deposit(Positions.key(v.p.protocol, v.p.pool, v.p.asset), v.p.shares, v.tokens, [
+          { asset: v.p.asset, units: v.tokens, basisMicro: basis, acquiredAt: ev.closedAt },
+        ]);
+        parts.push(`${v.tokens} ${v.p.asset.split(':')[0]} of collateral acquired for a basis of $${fmtUsd(basis)}`);
+      }
+      for (const v of dv) {
+        this.debts.borrow(Positions.key(v.p.protocol, v.p.pool, v.p.asset), v.p.shares, v.tokens);
+        parts.push(`${v.tokens} ${v.p.asset.split(':')[0]} of debt assumed`);
+      }
+    } else {
+      // Liquidated user: disposal of the seized collateral for the debt relieved.
+      for (const v of cv) {
+        const proceedsAll = (D * v.usd) / C;
+        const r = this.positions.seize(Positions.key(v.p.protocol, v.p.pool, v.p.asset), v.p.shares);
+        const used = v.p.shares - r.shareShortfall;
+        if (r.shareShortfall > 0n) {
+          this.warn(ev.id, 'no_lots', `${r.shareShortfall} b-tokens of ${v.p.asset.split(':')[0]} collateral seized had no tracked deposit (history before the sync window); no gain is booked for that part`);
+        }
+        if (used > 0n && r.principalUnits > 0n) {
+          const proceeds = v.p.shares === 0n ? 0n : (proceedsAll * used) / v.p.shares;
+          const at = r.earliestAt ?? ev.closedAt;
+          this.disposals.push({
+            asset: v.p.asset, units: r.principalUnits, basisMicro: r.basisMicro, proceedsMicro: proceeds, gainMicro: proceeds - r.basisMicro,
+            acquiredAt: at, disposedAt: ev.closedAt, longTerm: Date.parse(ev.closedAt) - Date.parse(at) > 365 * 86_400_000, lotId: 0,
+          });
+          parts.push(`${r.principalUnits} ${v.p.asset.split(':')[0]} disposed for $${fmtUsd(proceeds)} against a basis of $${fmtUsd(r.basisMicro)}`);
+        }
+      }
+      for (const v of dv) {
+        const r = this.debts.clear(Positions.key(v.p.protocol, v.p.pool, v.p.asset), v.p.shares);
+        if (r.shareShortfall > 0n) {
+          this.warn(ev.id, 'unknown_debt', `${r.shareShortfall} d-tokens of ${v.p.asset.split(':')[0]} debt cleared were borrowed before the sync window; their interest cannot be split out`);
+        }
+        const used = v.p.shares - r.shareShortfall;
+        if (used > 0n) {
+          const tracked = (v.tokens * used) / v.p.shares;
+          const interest = tracked - r.principalUnits;
+          if (interest > 0n) {
+            this.expenses.push({ eventId: ev.id, at: ev.closedAt, kind: 'borrow_interest', asset: v.p.asset, units: interest, decimals: v.p.decimals ?? 7, valueMicro: valueMicro(interest, v.p.decimals ?? 7, v.priceMicro) });
+          }
+        }
+        parts.push(`${v.tokens} ${v.p.asset.split(':')[0]} of debt relieved`);
+      }
+    }
+    this.warn(ev.id, 'liquidation_estimated', `${ev.note}. Valued with pool rates implied by events up to ${maxDist} ledgers away: ${parts.join('; ')}.`);
+    return true;
   }
 
   async apply(ev: LedgerEvent): Promise<void> {
@@ -291,9 +383,9 @@ export class Engine {
         return;
       }
       case 'liquidation': {
-        // Collateral seized and debt cleared are moves of shares, not cash. Their USD value needs the
-        // pool's b_rate / d_rate at that ledger (a state read, milestone M5), so no gain or loss is
-        // booked: the share ledgers stay consistent and the gap is reported, never guessed.
+        if (await this.valueLiquidation(ev)) return;
+        // No usable rate or price: collateral seized and debt cleared are moves of shares, not cash.
+        // Keep the share ledgers consistent, book no gain or loss, and say so. Never guess.
         const notes: string[] = [];
         for (const p of ev.positions ?? []) {
           const key = Positions.key(p.protocol, p.pool, p.asset);
