@@ -29,7 +29,7 @@ Run: `pnpm install` · `pnpm test` (offline, ~35 s) · `pnpm typecheck` · `node
 | **M2** | Classification + engine | Flows, Blend, Soroswap router, generic, fees; lots, positions, income/expense, warnings; 23 tests on real fixtures | 5 d | **Done** |
 | **M2b** | Exports + CLI | Koinly, events, gains, income, journal, JSON; report | 2 d | **Done** (Koinly labels unverified) |
 | **G1** | **Demand gate** | 10 interviews (`VALIDATION.md`); decision to continue | 2 wk elapsed, ~3 d effort | **Not started — do this before M3+** |
-| **M3** | Decoder coverage | Aquarius, Phoenix, DeFindex vaults, FxDAO, Blend auctions/backstop/v1; restrict Blend to factory pools; per-protocol fixtures + conservation tests | 2–3 wk | Not started |
+| **M3** | Decoder coverage | Blend done in depth (pool verification, borrow/repay shares, flash loan, backstop, liquidations; see DECODERS.md for what is mainnet-verified). Still to do: Aquarius, Phoenix, DeFindex vaults, FxDAO; Blend liquidation valuation (needs M5 rates) | 2–3 wk | Blend done, others not started |
 | **M4** | Correctness corpus | ≥ 20 real addresses, hand-audit 50 events, opening-balance import, fix Koinly labels via real import, extend F-9 test | 1 wk | Not started |
 | **M5** | Accrual + prices | Blend b-rate state reads for accrued interest; Reflector and AMM pool prices; monthly income report | 2 wk | Not started |
 | **M6** | Service | HTTP API (SPEC §9.1), queue + worker, Postgres, API keys, hosted sync, read-only web report | 3–4 wk | Not started |
