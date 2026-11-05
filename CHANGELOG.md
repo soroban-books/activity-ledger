@@ -4,6 +4,12 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-11-05
+
+First release, published to npm as `activity-ledger`. Run it with `npx activity-ledger serve`. It includes the initial engine and CLI (Horizon discovery, Galexie lake reader, classification of classic payments, Soroswap router swaps and Blend v2 core events, FIFO/LIFO/HIFO lots, lending positions with realised interest, SDEX/peg/manual pricing, Koinly, events, gains, income, journal and JSON exports, SQLite store) plus everything below.
+
 ### Added
 - Local web UI (`activity-ledger serve`): sync with live progress, reports with year, cost-basis and liquidity filters, events, gains, income, balances, borrows and warnings tabs, and downloads for Koinly, events, gains, income, journal and JSON. Loopback only, with host, content-type and CSP checks.
 - Blend v2 decoder covering the contract event set: pool supply, withdraw, borrow, repay, flash loan and claim; backstop deposit, withdraw, queue, dequeue and claim; auctions, liquidations and bad debt.
@@ -24,7 +30,3 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - A Blend supply or repay for an account's position paid by another address was booked as a wallet movement. A cash leg now needs a matching transfer that touches the account.
 - Borrow interest was computed principal-first on a per-asset total, which mixed pools and mis-timed partial repayments.
 - `invokedFunctions` decoded to NUL bytes instead of the function name.
-
-## [0.1.0] - not yet released
-
-Initial engine and CLI: Horizon discovery, Galexie lake reader, classification of classic payments, Soroswap router swaps and Blend v2 core events, FIFO/LIFO/HIFO lots, lending positions with realised interest, SDEX/peg/manual pricing, Koinly, events, gains, income, journal and JSON exports, SQLite store.

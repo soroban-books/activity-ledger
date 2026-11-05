@@ -17,7 +17,8 @@ The engine, CLI and local web UI work and are tested against real mainnet transa
 | **UI** Local web app | `serve` with live sync progress, reports, filters, tabs, downloads; loopback-only with host, content-type and CSP checks |
 | **M3 (Blend)** Blend v2 in depth | Pool verification through the factory, borrow and repay by d-token shares, flash loans, backstop, auctions and liquidations, bad debt; liquidations valued from rates implied by pool events |
 | **M7 (part)** Sync speed and reliability | Resilient HTTP, adaptive paging with prefetch, in-order streaming, warm workers, RPC endpoint fallback |
-| **Open source** | MIT license, contributing guide, code of conduct, security policy, templates, CI |
+| **Open source** | MIT license, contributing guide, code of conduct, security policy, templates, CI, a landing page |
+| **Release 0.1.0** | Published to npm: `npx activity-ledger serve` runs from a clean machine (2026-11-05) |
 
 ## Known gaps
 
@@ -46,7 +47,7 @@ What does not work yet, so nobody has to find out the hard way.
 
 **Product**
 - Demand is not validated: the 10 interviews in `docs/VALIDATION.md` (Gate G1) have not started, and the PRD asks for them before any hosted work.
-- No hosted service, HTTP API for third parties, or published package yet.
+- No hosted service or HTTP API for third parties; it runs locally only.
 
 ## Next
 
@@ -54,7 +55,6 @@ Roughly in priority order. "Done when" is the acceptance bar.
 
 | Milestone | Scope | Done when |
 |---|---|---|
-| **Release 0.1.0** | Publish the package so `npx` works | `npx activity-ledger serve` runs from a clean machine |
 | **G1** Demand gate | 10 interviews with Soroban DeFi users, treasuries, accountants and tax-vendor staff | At least 3 would pay, or at least 2 vendors would trial a feed; otherwise keep the engine as open-source infrastructure |
 | **M3** More decoders | Aquarius, Phoenix, DeFindex vaults, FxDAO | Each has a mainnet fixture, exact-amount tests, a conservation check and zero new `unclassified` on the fixture |
 | **M4** Correctness corpus | 20 or more real addresses, hand-audit 50 events, opening-balance import, a real Koinly import | At least 95% of events exact or heuristic; every `no_lots` or `unknown_basis` explained; Koinly labels confirmed |
