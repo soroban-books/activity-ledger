@@ -54,9 +54,18 @@ export function reportDto(accounts: string[], events: LedgerEvent[], res: Engine
     balances: res.openBalances.map((b) => ({ asset: b.asset, symbol: symbolOf(b.asset), units: fmtUnits(b.units, 7) })),
     positions: res.positions.map((p) => ({
       key: p.key,
+      kind: p.key.startsWith('blend-backstop:') ? 'backstop' : 'lending',
+      pool: p.key.split(':')[1] ?? '',
       asset: symbolOf(p.key.split(':').slice(2).join(':')),
       principal: fmtUnits(p.principalUnits, 7),
       shares: String(p.shares),
+    })),
+    debts: res.debts.map((d) => ({
+      key: d.key,
+      pool: d.key.split(':')[1] ?? '',
+      asset: symbolOf(d.key.split(':').slice(2).join(':')),
+      principal: fmtUnits(d.principalUnits, 7),
+      shares: String(d.shares),
     })),
     warnings: { counts: warningCounts, items: res.warnings.slice(0, 500) },
     events: evs.map((e) => ({

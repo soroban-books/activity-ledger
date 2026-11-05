@@ -6,7 +6,7 @@ const KIND_LABEL = {
   transfer_in: 'Received', transfer_out: 'Sent', trade: 'Swap', lp_add: 'Add liquidity', lp_remove: 'Remove liquidity',
   lend_supply: 'Lend', lend_withdraw: 'Withdraw', borrow: 'Borrow', repay: 'Repay', reward_claim: 'Reward claim',
   interest_income: 'Interest', fee: 'Network fee', mint: 'Mint', burn: 'Burn', liquidation: 'Liquidation',
-  vault_deposit: 'Vault deposit', vault_withdraw: 'Vault withdraw', unclassified: 'Unclassified',
+  vault_deposit: 'Vault deposit', vault_withdraw: 'Vault withdraw', unclassified: 'Unclassified', no_op: 'Notice',
 };
 const WARN_HELP = {
   unpriced: 'No USD price found for a leg, so its value is blank. Add a manual price file.',
@@ -15,6 +15,8 @@ const WARN_HELP = {
   unclassified: 'A contract call that moved no recognised assets for this account.',
   negative_interest: 'Computed interest was negative; check the position.',
   lp_value_unpriced: 'Liquidity value could not be priced.',
+  unknown_debt: 'A repayment for debt borrowed before the sync window, or taken over in a liquidation. The interest part cannot be split out.',
+  liquidation_unvalued: 'A Blend liquidation moved collateral and debt as shares. Their USD value needs the pool rates at that ledger, so no gain or loss is booked.',
 };
 
 const state = { accounts: [], data: null, tab: 'events', kind: '', query: '', page: 0, job: null };
@@ -258,8 +260,13 @@ function renderTab() {
     host.append(h('h3', { class: 'f4 mb-2' }, 'Open balances'),
       table([{ label: 'Asset', cell: (b) => b.symbol }, { label: 'Units', num: true, cell: (b) => units(b.units) }], d.balances, 'No open balances.'),
       h('h3', { class: 'f4 mt-4 mb-2' }, 'Open lending positions'),
-      table([{ label: 'Asset', cell: (p) => p.asset }, { label: 'Principal', num: true, cell: (p) => units(p.principal) }, { label: 'Shares', num: true, cell: (p) => p.shares }],
-        d.positions, 'No open lending positions.'));
+      table([{ label: 'Asset', cell: (p) => p.asset }, { label: 'Where', cell: (p) => (p.kind === 'backstop' ? 'Backstop' : 'Pool') + ' ' + short(p.pool, 4, 4) },
+        { label: 'Principal', num: true, cell: (p) => units(p.principal) }, { label: 'Shares', num: true, cell: (p) => p.shares }],
+        d.positions, 'No open lending positions.'),
+      h('h3', { class: 'f4 mt-4 mb-2' }, 'Open borrows'),
+      table([{ label: 'Asset', cell: (p) => p.asset }, { label: 'Pool', cell: (p) => short(p.pool, 4, 4) },
+        { label: 'Principal borrowed', num: true, cell: (p) => units(p.principal) }, { label: 'Debt shares', num: true, cell: (p) => p.shares }],
+        d.debts, 'No open borrows.'));
   } else {
     const entries = Object.entries(d.warnings.counts);
     if (entries.length === 0) host.append(h('div', { class: 'blankslate' }, h('p', { class: 'mb-0' }, 'No warnings. Every movement was classified and priced.')));
