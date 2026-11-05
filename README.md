@@ -7,7 +7,7 @@ Turn a Stellar address into books. It reads everything an address did (classic p
 
 > **Not tax advice.** Accounting treatments here are conventional defaults for a space with little official guidance. Every one is explicit, configurable where noted, and written down in [`docs/ACCOUNTING-POLICY.md`](docs/ACCOUNTING-POLICY.md) so an accountant can disagree with it.
 
-Version `0.1.0`. See [MILESTONE.md](MILESTONE.md) for what is done and what is planned.
+Website: <https://soroban-books.github.io/activity-ledger/>. Version `0.1.0`. See [MILESTONE.md](MILESTONE.md) for what is done and what is planned.
 
 ## Quick start
 
