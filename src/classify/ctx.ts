@@ -1,11 +1,14 @@
 import type { RawTx, LedgerEvent } from '../types.ts';
 import type { AssetRegistry } from '../assets.ts';
 import type { Flow } from './flows.ts';
+import type { BlendDirectory } from '../blend/directory.ts';
 
 export interface ClassifyCtx {
   tx: RawTx;
   account: string;
   reg: AssetRegistry;
+  /** Which contracts are really Blend (verified pools and backstops). */
+  blend: BlendDirectory;
   flows: Flow[];
   /** eventIndex of flows already explained by a protocol decoder. */
   claimed: Set<number>;

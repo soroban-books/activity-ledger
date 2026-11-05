@@ -4,7 +4,7 @@ import path from 'node:path';
 import { StrKey } from '@stellar/stellar-sdk';
 import { Store } from './store.ts';
 import { syncAccount } from './sync.ts';
-import { buildLedger } from './pipeline.ts';
+import { buildLedger, prepareBlend } from './pipeline.ts';
 import { CompositeProvider, ManualProvider, PegProvider, SdexProvider } from './pricing/providers.ts';
 import { koinlyCsv } from './export/koinly.ts';
 import { eventsCsv, gainsCsv, incomeCsv, journalCsv } from './export/reports.ts';
@@ -69,10 +69,11 @@ async function main(): Promise<void> {
 
   const per = new Map(accounts.map((a) => [a, store.txs(a)] as const));
   const prices = new CompositeProvider([new ManualProvider(opts.prices), new PegProvider(), new SdexProvider()]);
+  const blend = await prepareBlend(per, store);
   const { events, result } = await buildLedger(per, prices, {
     lotMethod: (opts.method as LotMethod) ?? 'FIFO',
     lp: (opts.lp as 'disposal' | 'carryover') ?? 'disposal',
-  });
+  }, blend);
 
   if (cmd === 'report') console.log(summary(events, result, opts.year ? Number(opts.year) : undefined));
   else if (cmd === 'events') console.log(eventsCsv(events, result));

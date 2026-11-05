@@ -12,7 +12,7 @@ import { StrKey } from '@stellar/stellar-sdk';
 import { Store } from './store.ts';
 import { LakeSource } from './sources/lake.ts';
 import { syncAccount } from './sync.ts';
-import { buildLedger } from './pipeline.ts';
+import { buildLedger, prepareBlend } from './pipeline.ts';
 import { reportDto } from './dto.ts';
 import { CompositeProvider, ManualProvider, PegProvider, SdexProvider } from './pricing/providers.ts';
 import { koinlyCsv } from './export/koinly.ts';
@@ -29,6 +29,8 @@ export interface ServeOptions {
   manualPrices?: string;
   /** Override the price source (tests use a fixed one so nothing touches the network). */
   prices?: PriceProvider;
+  /** Override the Blend factory lookup (tests inject one so nothing touches the network). */
+  blendLookup?: (id: string) => Promise<boolean>;
 }
 
 interface Progress {
@@ -115,7 +117,8 @@ export function startServer(opts: ServeOptions): Promise<http.Server> {
     const key = [...per].map(([a, t]) => `${a}:${t.length}`).sort().join(',') + `|${method}|${lp}`;
     let built = ledgerCache.get(key);
     if (!built) {
-      built = await buildLedger(per, provider(), { lotMethod: method as LotMethod, lp: lp as 'disposal' | 'carryover' });
+      const blend = await prepareBlend(per, store, opts.blendLookup);
+      built = await buildLedger(per, provider(), { lotMethod: method as LotMethod, lp: lp as 'disposal' | 'carryover' }, blend);
       if (ledgerCache.size >= 8) ledgerCache.delete(ledgerCache.keys().next().value as string);
       ledgerCache.set(key, built);
     }

@@ -5,18 +5,22 @@ import { baseEvent, type ClassifyCtx } from './ctx.ts';
 import { decodeBlend } from './blend.ts';
 import { decodeSoroswap } from './soroswap.ts';
 import { classifyGeneric } from './generic.ts';
+import { BlendDirectory } from '../blend/directory.ts';
+
+const SEEDED = BlendDirectory.seeded();
 
 /**
  * Classify one transaction from the point of view of `account`.
  * Order: protocol decoders (exact) -> generic flow heuristic -> fee -> unclassified marker.
  */
-export function classifyTx(tx: RawTx, account: string, reg: AssetRegistry): LedgerEvent[] {
+export function classifyTx(tx: RawTx, account: string, reg: AssetRegistry, blend: BlendDirectory = SEEDED): LedgerEvent[] {
   reg.learn(tx.events);
   let n = 0;
   const ctx: ClassifyCtx = {
     tx,
     account,
     reg,
+    blend,
     flows: tx.successful ? extractFlows(tx, reg) : [],
     claimed: new Set(),
     next: () => `${tx.hash}:${n++}`,
