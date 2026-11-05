@@ -1,5 +1,7 @@
 # Demand validation (Gate G1)
 
+Note: the `notes/` files cited here are private and not in this repository, so these competitor claims are unverified.
+
 Why this exists: LedgersTax and KwickBit both built this and stopped; KwickBit's own tracker says its surveys "revealed that the business potential for a crypto accounting tool targeting small and medium businesses is low" (`notes/soroban_ledger_prior_art.md`). Engineering is cheap relative to repeating that mistake.
 
 ## Who to talk to (target 10, at least 4 groups)

@@ -3,7 +3,7 @@
 **Status:** MVP engine built and tested (see `BUILD-PLAN.md`). Demand is **not yet validated** (see §9 and `VALIDATION.md`).
 **Working name:** `activity-ledger` (rename freely).
 **Last updated:** 2026-10-25.
-**Provenance:** this PRD comes out of the Stellar zero-to-one discovery in `../zero-to-one-discovery/notes/`. Every market claim below cites a note there; anything that is my judgment is labelled **[judgment]** and anything not yet checked is labelled **[unverified]**.
+**Provenance:** this PRD comes out of a private Stellar discovery exercise. Market claims below cite notes from it (`notes/...`) that are **not part of this repository**, so outside readers cannot check them: treat every market and competitor claim as **[unverified]** until independently confirmed. Anything that is judgment is labelled **[judgment]**. Technical claims are different: those are checked in `VERIFIED-FINDINGS.md` with scripts you can run.
 
 ---
 
