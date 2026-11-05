@@ -6,6 +6,7 @@ import { classifyTx } from '../src/classify/index.ts';
 import { buildLedger } from '../src/pipeline.ts';
 import { BlendDirectory, candidateContracts, resolveBlend, type VerdictCache } from '../src/blend/directory.ts';
 import { factoryKey } from '../src/blend/factory.ts';
+import { RateBook, DEFAULT_MAX_LEDGERS } from '../src/blend/rates.ts';
 import { loadFixture, fixedPrices, USDC } from './helpers.ts';
 
 const POOL = 'CAJJZSGMMM3PD7N33TAPHGBUGTB43OC73HVIK2L2G6BNGGGYOSSYBXBD'; // FixedV2 (seeded)
@@ -304,4 +305,121 @@ test('pipeline: unverified contracts are reported, not silently dropped', async 
   const tx = mk([ev(LOOKALIKE, ['supply', USDC_SAC, USER], [1000n, 900n]), transfer(USER, LOOKALIKE, 1000n)]);
   const { result } = await buildLedger(new Map([[USER, [tx]]]), fixedPrices, {}, dir);
   assert.ok(result.warnings.some((w) => /could not be verified as a Blend pool/.test(w.message)));
+});
+
+// ---- implied rates -------------------------------------------------------------------------
+test('rates: tokens / shares is the rate, nearest observation wins, stale or tiny ones are refused', () => {
+  const book = new RateBook();
+  book.add(POOL, 'native', 'b', 1000, 1_000_020_000n, 1_000_000_000n); // 1.00002
+  book.add(POOL, 'native', 'b', 2000, 1_000_040_000n, 1_000_000_000n); // 1.00004
+  book.add(POOL, 'native', 'b', 3000, 5n, 3n); // too small: ignored
+  assert.equal(book.size, 2);
+  assert.equal(book.lookup(POOL, 'native', 'b', 1000)!.rate12, 1_000_020_000_000n);
+  assert.equal(book.lookup(POOL, 'native', 'b', 1400)!.ledger, 1000);
+  assert.equal(book.lookup(POOL, 'native', 'b', 1600)!.ledger, 2000);
+  assert.equal(book.lookup(POOL, 'native', 'b', 1600)!.distance, 400);
+  assert.equal(book.lookup(POOL, 'native', 'b', 2000 + DEFAULT_MAX_LEDGERS + 1), null, 'older than the limit is not guessed');
+  assert.equal(book.lookup(POOL, 'native', 'd', 1000), null, 'b and d rates are separate');
+  assert.equal(book.lookup(POOL2, 'native', 'b', 1000), null, 'pools are separate');
+});
+
+test('rates: real mainnet USDC d_rate observations agree to 1e-7 and grow monotonically', () => {
+  const book = RateBook.harvest(liq, BlendDirectory.seeded(), new AssetRegistry());
+  const at = (l: number) => Number(book.lookup(POOL, USDC, 'd', l)!.rate12) / 1e12;
+  const r = [65204260, 65204261, 65204440, 65204444].map(at);
+  assert.ok(r[0]! > 1.2496 && r[0]! < 1.2497);
+  for (let i = 1; i < r.length; i++) assert.ok(r[i]! >= r[i - 1]!, 'interest only accrues upwards');
+  assert.ok(r[3]! - r[0]! < 1e-5, 'about 180 ledgers of accrual is a few millionths');
+});
+
+test('rates: harvest ignores unverified contracts and failed transactions', () => {
+  const bad = mk([ev(LOOKALIKE, ['supply', USDC_SAC, USER], [5_000_000n, 4_000_000n])]);
+  const failed = mk([ev(POOL, ['supply', USDC_SAC, USER], [5_000_000n, 4_000_000n])], { ok: false });
+  const book = RateBook.harvest([bad, failed], BlendDirectory.seeded(), new AssetRegistry());
+  assert.equal(book.size, 0);
+});
+
+// ---- valued liquidations (real liquidation events, victim history built around them) ---------
+const XLM_SAC = 'CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA';
+const CDTKPW = 'CDTKPWPLOURQA2SGTKTUQOWRCBZEORB4BWBOMJ3D3ZTQQSGE5F6JBQLV';
+const flatPrices = {
+  async price(asset: string) {
+    return { micro: asset === 'native' ? 200_000n : 1_000_000n, source: 'test' }; // XLM $0.20, everything else $1
+  },
+};
+const xlmTransfer = (from: string, to: string, amount: bigint): RawEvent => ev(XLM_SAC, ['transfer', from, to, 'native'], amount);
+const cdtTransfer = (from: string, to: string, amount: bigint): RawEvent => ev(CDTKPW, ['transfer', from, to], amount);
+
+/** The victim held 15,000 XLM (basis $0.20), supplied it as collateral and borrowed USDC and CDTKPW. */
+function victimHistory(): RawTx[] {
+  const mkAt = (events: RawEvent[], at: string, ledger: number): RawTx => ({ ...mk(events, { source: VICTIM, at }), ledger });
+  return [
+    mkAt([xlmTransfer(OTHER, VICTIM, 150_000_000_000n)], '2026-05-01T00:00:00Z', 10),
+    mkAt([ev(POOL, ['supply_collateral', XLM_SAC, VICTIM], [150_000_000_000n, 149_990_000_000n]), xlmTransfer(VICTIM, POOL, 150_000_000_000n)], '2026-05-02T00:00:00Z', 11),
+    mkAt([ev(POOL, ['borrow', USDC_SAC, VICTIM], [14_000_000_000n, 17_147_543_417n]), transfer(POOL, VICTIM, 14_000_000_000n)], '2026-05-03T00:00:00Z', 12),
+    mkAt([ev(POOL, ['borrow', CDTKPW, VICTIM], [300_000_000n, 374_131_355n]), cdtTransfer(POOL, VICTIM, 300_000_000n)], '2026-05-03T00:00:01Z', 13),
+  ];
+}
+
+test('liquidation valued: the victim disposes the seized collateral for the debt it relieved', async () => {
+  const { result } = await buildLedger(new Map([[VICTIM, [...victimHistory(), ...liq]]]), flatPrices);
+  assert.equal(result.warnings.filter((w) => w.code === 'liquidation_estimated').length, 2);
+  assert.equal(result.warnings.filter((w) => w.code === 'liquidation_unvalued').length, 0);
+
+  // Independent expectation from the raw auction numbers and the rates in the same transactions.
+  const usdcDebt = 17_147_543_417 * 1.24961788 / 1e7; // two fills, d_rate about 1.2496179
+  const cdtDebt = 374_131_355 * 1.2294052 / 1e7; // d_rate from the first fill's repay
+  const expectedProceeds = (usdcDebt + cdtDebt) * 1e6; // $1 each, in micro-USD
+  const disposals = result.disposals.filter((d) => d.asset === 'native' && d.disposedAt.startsWith('2026-10-29'));
+  assert.equal(disposals.length, 2, 'one disposal of XLM per fill');
+  const proceeds = disposals.reduce((s, d) => s + Number(d.proceedsMicro), 0);
+  assert.ok(Math.abs(proceeds / expectedProceeds - 1) < 1e-5, `proceeds ${proceeds} vs expected ${expectedProceeds}`);
+  for (const d of disposals) {
+    assert.equal(d.gainMicro, d.proceedsMicro - d.basisMicro, 'gain is proceeds minus basis');
+    assert.ok(Math.abs(Number(d.basisMicro) / (Number(d.units) * 0.02) - 1) < 1e-3, 'basis carried at $0.20 per XLM (1 stroop = 0.02 micro-USD)');
+    assert.equal(d.longTerm, false);
+  }
+  // Both fills together seized 140,751,585,809 b-tokens, so that fraction of the principal left the position.
+  const left = result.positions.find((p) => p.key.endsWith(':native'))!;
+  assert.equal(left.shares, 149_990_000_000n - 140_751_585_809n);
+  // The debt is fully cleared (the borrow shares equal the sum of both fills) and interest on it is an expense.
+  assert.deepEqual(result.debts, []);
+  const interestUsd = result.expenses.filter((x) => x.kind === 'borrow_interest').reduce((s, x) => s + Number(x.valueMicro), 0);
+  const expectedInterest = (usdcDebt - 1_400) * 1e6 + (cdtDebt - 30) * 1e6; // relieved tokens minus tracked principal (1,400 USDC and 30 EURC borrowed)
+  assert.ok(Math.abs(interestUsd / expectedInterest - 1) < 1e-4, `interest ${interestUsd} vs ${expectedInterest}`);
+});
+
+test('liquidation valued: partial tracking books gains only for what was tracked and warns about the rest', async () => {
+  const history = victimHistory();
+  // Only a tenth of the collateral predates the sync window as a tracked deposit.
+  history[1] = { ...history[1]!, events: history[1]!.events.map((e) => (e.topics[0] === 'supply_collateral' ? { ...e, data: [15_000_000_000n, 14_000_000_000n] } : e)) };
+  const { result } = await buildLedger(new Map([[VICTIM, [...history, ...liq]]]), flatPrices);
+  assert.ok(result.warnings.some((w) => w.code === 'no_lots' && /collateral seized had no tracked deposit/.test(w.message)));
+});
+
+test('liquidation valued: a G-account liquidator acquires collateral at the debt value and tracks the assumed debt', async () => {
+  const { result } = await buildLedger(new Map([[LIQUIDATOR, liq]]), flatPrices);
+  assert.equal(result.warnings.filter((w) => w.code === 'liquidation_estimated').length, 2);
+  assert.equal(result.warnings.filter((w) => w.code === 'unknown_debt').length, 0, 'its repay now has a tracked debt to apply to');
+  assert.equal(result.warnings.filter((w) => w.code === 'liquidation_unvalued').length, 0);
+  // The repays are applied at the same rate the debt was assumed at (or a few ledgers later), so only
+  // genuine accrual between the two fills remains: well under 1e-5 USDC (100 stroops).
+  const interest = result.expenses.filter((x) => x.kind === 'borrow_interest');
+  for (const x of interest) assert.ok(x.units <= 100n, `interest ${x.units} stroops should be accrual dust`);
+  // Collateral is held as a position with a basis equal to the debt assumed, below its market value.
+  const pos = result.positions.find((p) => p.key.endsWith(':native'))!;
+  assert.ok(pos.shares > 0n);
+  const basis = pos.carries.reduce((s, c) => s + Number(c.basisMicro), 0);
+  const marketUsd = Number(pos.principalUnits) * 0.02;
+  assert.ok(basis > 0 && basis < marketUsd, `basis $${basis / 1e6} must be below market $${marketUsd / 1e6} (the liquidation bonus)`);
+  assert.ok(result.debts.length >= 1, 'assumed debt is tracked until repaid');
+});
+
+test('liquidation valued: with no price for an asset it falls back to unvalued instead of guessing', async () => {
+  // The fixture teaches the registry that the CDTKPW contract is the EURC stablecoin, so its canonical key is EURC:G...
+  const noCdt = { async price(asset: string) { return asset.startsWith('EURC') ? null : { micro: 1_000_000n, source: 'test' }; } };
+  const { result } = await buildLedger(new Map([[VICTIM, [...victimHistory(), ...liq]]]), noCdt);
+  assert.equal(result.warnings.filter((w) => w.code === 'liquidation_estimated').length, 0);
+  assert.ok(result.warnings.filter((w) => w.code === 'liquidation_unvalued').length >= 1);
+  assert.equal(result.disposals.filter((d) => d.disposedAt.startsWith('2026-10-29')).length, 0);
 });
